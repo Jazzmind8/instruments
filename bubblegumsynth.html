@@ -1,0 +1,1629 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Bubblegum Synth</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap&subset=latin-ext" rel="stylesheet">
+<style>
+/* Layout: compact control panels on top, sticky keyboard pinned at the bottom of the screen */
+:root {
+  color-scheme: light;
+  --bg: #fff1f8;
+  --card: #ffffff;
+  --fg: #3a1d3f;
+  --muted: #8e6c93;
+  --accent: #ff5fa2;
+  --accent2: #a77bff;
+  --accent3: #ffc2dd;
+  --line: #f3d3e7;
+  --key-w: #ffffff;
+  --key-b: #3a1d3f;
+  --font: 'Nunito', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #1e0f26;
+    --card: #2a1636;
+    --fg: #fbe9f6;
+    --muted: #b596bd;
+    --accent: #ff7ac8;
+    --accent2: #c7a6ff;
+    --accent3: #5a3470;
+    --line: #432754;
+    --key-w: #f4e6f2;
+    --key-b: #1e0f26;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1e0f26;
+  --card: #2a1636;
+  --fg: #fbe9f6;
+  --muted: #b596bd;
+  --accent: #ff7ac8;
+  --accent2: #c7a6ff;
+  --accent3: #5a3470;
+  --line: #432754;
+  --key-w: #f4e6f2;
+  --key-b: #1e0f26;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(900px 500px at 8% -10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%), var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 14px;
+  min-height: 100%;
+}
+button { font: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent2); outline-offset: 2px; }
+
+.app {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding-block: 12px 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.orb {
+  width: 36px; height: 36px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 30% 30%, #fff 0 10%, var(--accent3) 12% 30%, var(--accent) 60%, var(--accent2));
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+h1 {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
+  margin: 0;
+  letter-spacing: -0.01em;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.sub { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.oct { display: flex; align-items: center; gap: 6px; font-weight: 800; }
+.oct span { min-width: 40px; text-align: center; }
+
+.pill {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .12s ease;
+}
+.pill:active { transform: scale(.96); }
+.pill.ghost {
+  background: transparent;
+  color: var(--fg);
+  border: 1.5px solid var(--line);
+  padding: 5px 12px;
+}
+.pill.on { background: var(--accent); color: #fff; border-color: transparent; }
+.pill.learning { background: var(--accent2); color: #fff; border-color: transparent; }
+
+.tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+
+.presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; align-items: center; }
+.status { color: var(--muted); font-size: 12px; margin: 0 0 8px; min-height: 16px; }
+
+.savebar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.savebar input {
+  flex: 1 1 160px;
+  min-width: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+}
+#piotxt {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  padding: 8px;
+  margin-bottom: 6px;
+}
+
+.scopewrap { margin-bottom: 10px; }
+canvas#scope {
+  width: 100%;
+  height: 56px;
+  display: block;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent2) 10%, transparent);
+  border: 1px solid var(--line);
+  box-sizing: border-box;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 12px 14px 10px;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 12%, transparent);
+  min-width: 0;
+}
+.panel h2 {
+  font-size: 15px;
+  font-weight: 800;
+  margin: 0 0 6px;
+}
+.hint { color: var(--muted); font-size: 12px; margin: 0 0 8px; }
+
+.row { display: grid; gap: 3px; margin-bottom: 6px; cursor: help; }
+.lbl { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; }
+.lbl output { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
+
+.seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.seg button {
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  padding: 5px 8px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.seg button.on {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+}
+
+.mrow { display: flex; gap: 6px; align-items: center; }
+.mrow select {
+  flex: 1;
+  min-width: 0;
+  border-radius: 10px;
+  padding: 5px 6px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+}
+.mrow .pill { padding: 5px 10px; font-size: 12px; white-space: nowrap; }
+
+/* Sticky keyboard: stays visible at the bottom of the screen while scrolling */
+.kbpanel {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin-top: 10px;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -10px 30px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.kbhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+.kbhead h2 { margin: 0; font-size: 15px; font-weight: 800; }
+.kbhead p { margin: 0; color: var(--muted); font-size: 11.5px; flex: 1 1 200px; }
+.kb {
+  position: relative;
+  height: 130px;
+  border-radius: 14px;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  background: var(--line);
+}
+.k {
+  position: absolute;
+  top: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .08s ease;
+}
+.k.w {
+  bottom: 0;
+  width: 12.5%;
+  background: var(--key-w);
+  color: var(--key-b);
+  border-right: 1px solid color-mix(in srgb, var(--key-b) 14%, transparent);
+  border-radius: 0 0 10px 10px;
+  padding-bottom: 8px;
+  box-sizing: border-box;
+}
+.k.b {
+  height: 58%;
+  width: 8%;
+  background: var(--key-b);
+  color: var(--key-w);
+  border-radius: 0 0 8px 8px;
+  z-index: 2;
+  padding-bottom: 6px;
+  box-sizing: border-box;
+}
+.k.w.on { background: linear-gradient(var(--accent3), var(--accent)); color: #fff; }
+.k.b.on { background: var(--accent); color: #fff; }
+
+/* Glossary tab */
+.gloss { display: grid; gap: 10px; }
+.gloss section { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 12px 16px; }
+.gloss h2 { font-size: 15px; font-weight: 800; margin: 0 0 6px; color: var(--accent); }
+.gloss dl { margin: 0; display: grid; gap: 8px; }
+.gloss dt { font-weight: 800; }
+.gloss dt small { font-weight: 600; color: var(--muted); }
+.gloss dd { margin: 2px 0 0; line-height: 1.5; }
+
+@media (max-width: 480px) {
+  h1 { font-size: 21px; }
+  .k { font-size: 11px; }
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="orb" aria-hidden="true"></div>
+      <div>
+        <h1>Bubblegum Synth</h1>
+        <p class="sub">Fehér billentyűk: A S D F J K L É · fekete: W E T Z U · oktáv: , / . · Space: kitartás</p>
+      </div>
+    </div>
+    <div class="actions">
+      <div class="oct">
+        <button class="pill ghost" id="octDn" type="button" aria-label="Oktáv le">−</button>
+        <span id="octLbl">C3</span>
+        <button class="pill ghost" id="octUp" type="button" aria-label="Oktáv fel">+</button>
+      </div>
+      <button class="pill" id="midiBtn" type="button">MIDI csatlakoztatása</button>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Nézetek">
+    <button class="pill on" id="tabSynth" type="button">Szintetizátor</button>
+    <button class="pill ghost" id="tabGloss" type="button">Fogalomtár</button>
+  </nav>
+
+  <div id="viewSynth">
+    <div class="presets" id="cats"></div>
+    <div class="presets" id="plist"></div>
+    <div class="presets" id="tools">
+      <button class="pill ghost" id="btnReset" type="button">Reset</button>
+      <button class="pill ghost" id="btnRand" type="button">Véletlen hangszín</button>
+      <button class="pill ghost" id="btnDel" type="button">Törlés mód: ki</button>
+    </div>
+    <div class="savebar">
+      <input id="pname" type="text" placeholder="Saját preset neve" aria-label="Saját preset neve">
+      <button class="pill" id="btnSave" type="button">Mentés</button>
+      <button class="pill ghost" id="btnExp" type="button" title="Saját presetek mentése szövegként, hogy másik gépre vagy böngészőbe át lehessen vinni, vagy biztonsági másolatot lehessen készíteni.">Exportálás / importálás</button>
+    </div>
+    <div id="pio" hidden>
+      <textarea id="piotxt" rows="4" aria-label="Preset JSON"></textarea>
+      <div class="presets">
+        <button class="pill ghost" id="btnCopy" type="button">Másolás</button>
+        <button class="pill ghost" id="btnImp" type="button">Betöltés a szövegből</button>
+      </div>
+    </div>
+
+    <p class="status" id="status" aria-live="polite"></p>
+    <div class="scopewrap">
+      <canvas id="scope" aria-label="Hullámforma"></canvas>
+    </div>
+    <main class="grid" id="grid"></main>
+
+    <section class="panel kbpanel">
+      <div class="kbhead">
+        <h2>Billentyűzet</h2>
+        <p>Húzd végig az ujjad a billentyűkön a csúsztatáshoz</p>
+        <span class="pill ghost" id="sus" title="Kitartás (Sustain): tartsd lenyomva a Space-t, és a hangok nem halnak el, amíg el nem engeded.">Kitartás · Space</span>
+      </div>
+      <div class="kb" id="kb"></div>
+    </section>
+  </div>
+
+  <div id="viewGloss" class="gloss" hidden>
+    <section>
+      <h2>Oszcillátor és hangszín</h2>
+      <dl>
+        <div><dt>Oszcillátor <small>(Oscillator)</small></dt><dd>Az alap hang forrása. Minden hang ebből indul. Két oszcillátor van, ezek keverékét hallod.</dd></div>
+        <div><dt>Hullámforma <small>(Waveform)</small></dt><dd>Az oszcillátor alakja, ez határozza meg a hangszínt. A <b>Sine</b> (szinusz) tiszta és lágy, a <b>Triangle</b> (háromszög) lágy, de kicsit több felharmonikust tartalmaz, a <b>Sawtooth</b> (fűrész) fényes és recsegős, a <b>Square</b> (négyszög) üreges, fa jellegű.</dd></div>
+        <div><dt>Pulzusszélesség <small>(Pulse width, PWM)</small></dt><dd>A <b>Pulse</b> hullám kitöltése. 50%-nál négyszög, más értéknél vékonyabb, orrhangú hangot ad. Ha játék közben változtatod, a hang „mozog".</dd></div>
+        <div><dt>Zajoszcillátor <small>(Noise)</small></dt><dd>Nem hangmagasságú, véletlen zajt ad. Levegős, szél- vagy dobjellegű hangokhoz (hi-hat, snare, szél) jó. A Hangmagasság és a Hangolás itt nincs hatással.</dd></div>
+        <div><dt>Unison <small>(Unison)</small></dt><dd>Egy oszcillátor többször szól, enyhén eltérő hangolással. Egy Unison=5 és Spread=20 cent már „supersaw"-szerű, szélesen zúgó pad hangot ad. A szám változtatása az új hangokra hat.</dd></div>
+        <div><dt>Hangszín <small>(Timbre)</small></dt><dd>Az a tulajdonság, ami két azonos magasságú hangot megkülönböztet, például egy zongorát és egy hegedűt. A hangszínt a hullámforma, a szűrő és a borítékok együtt alakítják ki.</dd></div>
+        <div><dt>Oktáv <small>(Octave)</small></dt><dd>A hangmagasságot 12 félhanggal tolja el. A +1 egy oktávval feljebb, a −1 egy oktávval lejjebb visz.</dd></div>
+        <div><dt>Hangolás <small>(Detune)</small></dt><dd>Apró magasságeltérés centben mérve. 100 cent egy félhang. Két kissé eltérő hangolású oszcillátor vastagabb hangot ad.</dd></div>
+        <div><dt>Szint <small>(Level)</small></dt><dd>Az adott oszcillátor hangereje a keverékben.</dd></div>
+      </dl>
+    </section>
+    <section>
+      <h2>Szűrő</h2>
+      <dl>
+        <div><dt>Szűrő <small>(Filter)</small></dt><dd>Bizonyos frekvenciákat csökkent vagy kivesz a hangból. Az <b>Aluljáró</b> (Low-pass) a mélyeket engedi át, a <b>Felüljáró</b> (High-pass) a magasakat, a <b>Sáv</b> (Band-pass) csak a középső tartományt.</dd></div>
+        <div><dt>Vágási frekvencia <small>(Cutoff)</small></dt><dd>Az a pont, ahol a szűrő elkezd hatni, Hz-ben mérve. Alacsonyabb vágással sötétebb a hang.</dd></div>
+        <div><dt>Rezonancia <small>(Resonance)</small></dt><dd>A vágási frekvencia környékén kiemeli a hangokat. Magasnál sípoló, „csúszós" hangzást ad.</dd></div>
+        <div><dt>Borítékmennyiség <small>(Env Amount)</small></dt><dd>Megmondja, mennyire tolja felfelé a szűrőborítékkal a vágási frekvenciát a billentyű lenyomásakor.</dd></div>
+      </dl>
+    </section>
+    <section>
+      <h2>Boríték</h2>
+      <dl>
+        <div><dt>Boríték <small>(Envelope)</small></dt><dd>Azt írja le, hogyan változik egy érték az idő függvényében a billentyű lenyomása után. Az <b>Amp Envelope</b> a hangerőt, a <b>Filter Envelope</b> a vágási frekvenciát vezérli.</dd></div>
+        <div><dt>Felfutás <small>(Attack)</small></dt><dd>Az idő, ami alatt a hang a csúcsig ér. Rövid felfutás ütős, hosszú lassan „nő" a hang.</dd></div>
+        <div><dt>Lecsengés <small>(Decay)</small></dt><dd>Az idő, ami alatt a csúcsról a kitartási szintre esik.</dd></div>
+        <div><dt>Kitartás <small>(Sustain)</small></dt><dd>Az a szint, amelyen a hang marad, amíg a billentyűt tartod.</dd></div>
+        <div><dt>Elengedés <small>(Release)</small></dt><dd>Az idő, ami alatt a hang elhalkul, miután felengedted a billentyűt.</dd></div>
+      </dl>
+    </section>
+    <section>
+      <h2>LFO és moduláció</h2>
+      <dl>
+        <div><dt>LFO <small>(Low-Frequency Oscillator, alacsony frekvenciájú oszcillátor)</small></dt><dd>Lassú hullám, ami automatikusan mozgat egy másik paramétert. A mozgást adja, nem hangmagasságként hallod.</dd></div>
+        <div><dt>Sebesség <small>(Rate)</small></dt><dd>Az LFO hullámainak sebessége Hz-ben. 5 Hz körül a tipikus vibrato.</dd></div>
+        <div><dt>Mélység <small>(Depth)</small></dt><dd>Mennyire erősen hat az LFO a célpontjára. 0% esetén nincs hatása.</dd></div>
+        <div><dt>Cél <small>(Target)</small></dt><dd>A <b>Pitch</b> (hangmagasság) vibratót ad, a <b>Filter</b> (szűrő) wah-szerű mozgást, az <b>Amp</b> (hangerő) tremolót.</dd></div>
+      </dl>
+    </section>
+    <section>
+      <h2>Effektek</h2>
+      <dl>
+        <div><dt>Drive <small>(torzítás)</small></dt><dd>Telíti a hangot, melegebb, „harapósabb" lesz. Magas értéknél már torzít.</dd></div>
+        <div><dt>Chorus <small>(kórus)</small></dt><dd>Egy kissé késleltetett, mozgó másolatot kever a hanghoz. Vastagabb, kicsit lebegő hangot ad.</dd></div>
+        <div><dt>Delay <small>(visszhang)</small></dt><dd>A hangot késleltetve ismétli. A <b>Delay mix</b> az arányt, az <b>Idő</b> a késleltetést (másodpercben), a <b>Visszacsatolás</b> pedig az ismétlések számát adja.</dd></div>
+        <div><dt>Reverb <small>(térhatás)</small></dt><dd>Egy térre jellemző dörgés: a hang mintha terembe szólna. Magas értéknél zengő, hosszú a farok.</dd></div>
+      </dl>
+    </section>
+    <section>
+      <h2>Arpeggiátor</h2>
+      <dl>
+        <div><dt>Arpeggiátor <small>(Arpeggio)</small></dt><dd>Az egyszerre lenyomott hangokat egymás után, sorban szólaltatja meg. Be- és kikapcsolható.</dd></div>
+        <div><dt>Minta <small>(Pattern)</small></dt><dd>A sorrend: <b>Up</b> (felfelé), <b>Down</b> (lefelé), <b>Up-Down</b> (fel, majd le), <b>Random</b> (véletlenszerű).</dd></div>
+        <div><dt>Ritmus <small>(Rate)</small></dt><dd>Egy lépés hossza. Az 1/8 hosszú, az 1/16 felezi, az 1/32 negyedeli.</dd></div>
+        <div><dt>Tempó <small>(Tempo, BPM)</small></dt><dd>Percenkénti ütemszám. A 120 BPM általános, pörgős zenéhez 140–180.</dd></div>
+        <div><dt>Oktávtartomány <small>(Octaves)</small></dt><dd>Hány oktávon át ismétli a megtartott hangokat.</dd></div>
+        <div><dt>Gate</dt><dd>A lépés hány százalékában szól a hang. Alacsony érték pattogó, 100% esetén a hangok összeérnek.</dd></div>
+      </dl>
+    </section>
+    <section>
+      <h2>Presetek és hangszín-keresés</h2>
+      <dl>
+        <div><dt>Preset</dt><dd>Mentett beállításcsoport. A kategóriákra (Pad, Bass, Lead, Keys, Pluck, Brass, FX) kattintva szűrheted őket. A Reset az alap hangra állít vissza.</dd></div>
+        <div><dt>Saját preset</dt><dd>A jelenlegi hangodat a Mentés gombbal elmentheted, a böngészőben marad meg. A Törlés módban a saját presetre kattintva törölheted.</dd></div>
+        <div><dt>Exportálás / importálás</dt><dd>A saját presetjeid szövegként (JSON) lesznek elérhetők. Ezzel biztonsági másolatot készíthetsz, vagy átviheted őket másik gépre és böngészőbe, mert a mentett presetek csak abban a böngészőben érhetők el, ahol létrehoztad őket. Importálásnál a szövegdobozba másold be a korábban exportált szöveget.</dd></div>
+        <div><dt>Véletlen hangszín</dt><dd>Véletlenszerű beállítást generál, amiből jó kiindulópont egy új hang. A hangerő és az arpeggiátor beállításai nem változnak.</dd></div>
+      </dl>
+    </section>
+    <section>
+      <h2>MIDI-eszköz és makró gombok</h2>
+      <dl>
+        <div><dt>MIDI <small>(Musical Instrument Digital Interface)</small></dt><dd>A szabványos protokoll, amivel billentyűzetek és vezérlők csatlakoznak a számítógéphez. A MIDI csatlakoztatása gombbal engedélyezed a böngészőnek az eszköz olvasását.</dd></div>
+        <div><dt>Oktávváltás eszközön</dt><dd>Sok billentyűzet oktávgombja csak a saját billentyűit tolja el, és nem küld külön üzenetet. A program ezért a lenyomott hang alapján követi az oktávot. A dobpadok hangjai (36–43) nem változtatják az oktávot.</dd></div>
+        <div><dt>Vezérlőváltozás <small>(Control Change, CC)</small></dt><dd>A MIDI-üzenet, amivel a gombok és tekerők mozgását küldik. Minden gombnak van egy száma (CC szám).</dd></div>
+        <div><dt>Makró gomb</dt><dd>A fizikai tekerőgomb, amit egy paraméterhez rendelhetsz. Forgatva a kiválasztott paraméter változik a képernyőn is.</dd></div>
+        <div><dt>MIDI-tanulás <small>(MIDI learn)</small></dt><dd>A Tanulás gombbal megmondod a programnak, melyik fizikai gombot akarod használni. Nyomd meg a Tanulás gombot, majd mozgasd meg a tekerőt.</dd></div>
+        <div><dt>Erő <small>(Velocity)</small></dt><dd>Milyen erősen üti meg a billentyűt vagy a padet a MIDI-eszközön. A Velocity csúszkával állíthatod, mennyire befolyásolja a hangerőt.</dd></div>
+        <div><dt>Glissando <small>(Csúsztatás)</small></dt><dd>Az ujjad végighúzása a billentyűkön, így minden billentyű sorban megszólal.</dd></div>
+        <div><dt>Modulációs kerék <small>(Mod wheel, CC1)</small></dt><dd>A MIDI-billentyűzeten ez a kerék az LFO mélységét állítja.</dd></div>
+        <div><dt>Hangmagasság-hajlítás <small>(Pitch bend)</small></dt><dd>A MIDI-kerék, ami az összes hangot legfeljebb két félhanggal felfelé vagy lefelé hajlítja.</dd></div>
+        <div><dt>Kitartás-pedál <small>(Sustain pedal, Space)</small></dt><dd>Ha lenyomva tartod a Space-t, a felengedett billentyűk hangja tovább szól.</dd></div>
+        <div><dt>Főhangerő <small>(Master Volume)</small></dt><dd>A szintetizátor teljes kimeneti hangereje.</dd></div>
+        <div><dt>Polifónia <small>(Polyphony)</small></dt><dd>Hány hang szólhat egyszerre. Itt 12. Ha elérjük a limitet, a legrégebbi hang leáll.</dd></div>
+        <div><dt>Hullámforma-kijelző <small>(Oscilloscope)</small></dt><dd>Valós időben mutatja a kimenő hang alakját.</dd></div>
+      </dl>
+    </section>
+  </div>
+</div>
+
+<script>
+// ---------- State and defaults ----------
+const DEFAULTS = {
+  o1w: 'sawtooth', o1o: 0, o1d: 0, o1l: 70, o1u: 1, o1sp: 0, o1pw: 50,
+  o2w: 'square', o2o: 0, o2d: 8, o2l: 40, o2u: 1, o2sp: 0, o2pw: 50,
+  ft: 'lowpass', fc: 1400, fq: 3, fe: 2400,
+  aa: 0.02, ad: 0.35, as: 0.6, ar: 0.6,
+  fa: 0.01, fd: 0.4, fs: 0.2, fr: 0.5,
+  lw: 'sine', lr: 5, ld: 20, lt: 'filter',
+  drv: 0, cho: 0, dlm: 0, dlt: 0.3, dlf: 35, rv: 0,
+  arp: 'off', arpP: 'up', arpD: '4', arpBpm: 120, arpOct: 1, arpGate: 60,
+  vs: 70,
+  vol: 60
+};
+const S = Object.assign({}, DEFAULTS);
+
+const WAVES = [['sine', 'Sine'], ['triangle', 'Triangle'], ['sawtooth', 'Sawtooth'], ['square', 'Square'], ['pulse', 'Pulse'], ['noise', 'Noise']];
+const LFO_WAVES = WAVES.slice(0, 4);
+const OSC_TYPES = ['sine', 'triangle', 'sawtooth', 'square'];
+
+// Presets, grouped by category. Only the values that differ from the defaults are listed.
+const PRESETS = [
+  // ---- Pad ----
+  { cat: 'Pad', name: 'Silk pad', p: { o1w: 'sawtooth', o2w: 'sawtooth', o2d: 12, fc: 900, fq: 1, fe: 1200, aa: 0.9, ad: 1.2, as: 0.8, ar: 1.8, fa: 0.6, fd: 1.5, fs: 0.5, fr: 1.2, lw: 'sine', lr: 0.4, ld: 30, lt: 'filter', cho: 25, rv: 30 } },
+  { cat: 'Pad', name: 'Supersaw pad', p: { o1w: 'sawtooth', o1u: 7, o1sp: 25, o2w: 'sawtooth', o2u: 5, o2sp: 20, o2d: 0, o2o: 0, o2l: 50, fc: 2500, fq: 1.5, fe: 800, aa: 0.4, ad: 1.5, as: 0.7, ar: 1.5, fa: 0.5, fd: 1.5, fs: 0.6, fr: 1.2, lw: 'sine', lr: 0.3, ld: 25, lt: 'filter', cho: 40, rv: 35, dlm: 15 } },
+  { cat: 'Pad', name: 'Warm pad', p: { o1w: 'triangle', o2w: 'sawtooth', o2o: -1, o2l: 35, fc: 700, fq: 0.8, fe: 900, aa: 1.2, ad: 2, as: 0.85, ar: 2.5, fa: 1, fd: 2, fs: 0.6, fr: 2, lw: 'sine', lr: 0.25, ld: 15, lt: 'pitch', cho: 30, rv: 40 } },
+  { cat: 'Pad', name: 'Glass pad', p: { o1w: 'sine', o2w: 'triangle', o2o: 1, o2d: 6, o2l: 45, ft: 'bandpass', fc: 2000, fq: 2, fe: 1500, aa: 0.8, ad: 1.5, as: 0.7, ar: 2, fa: 0.8, fd: 2, fs: 0.5, fr: 2, lw: 'triangle', lr: 0.5, ld: 20, lt: 'pitch', rv: 45, dlm: 20, dlt: 0.4 } },
+  { cat: 'Pad', name: 'Dark drone', p: { o1w: 'sawtooth', o1o: -1, o2w: 'square', o2o: -1, o2d: 4, o2l: 30, fc: 320, fq: 2.5, fe: 300, aa: 1.8, ad: 2.5, as: 0.9, ar: 3, fa: 1.5, fd: 3, fs: 0.8, fr: 3, lw: 'sine', lr: 0.15, ld: 35, lt: 'filter', drv: 15, rv: 50 } },
+  { cat: 'Pad', name: 'Vocal pad', p: { o1w: 'pulse', o1pw: 30, o2w: 'triangle', o2o: 1, o2l: 30, fc: 1600, fq: 3, fe: 600, aa: 0.7, ad: 1.2, as: 0.8, ar: 1.5, fa: 0.6, fd: 1.5, fs: 0.6, fr: 1.2, lw: 'sine', lr: 5.5, ld: 12, lt: 'pitch', cho: 35, rv: 40 } },
+  { cat: 'Pad', name: 'Shimmer pad', p: { o1w: 'triangle', o2w: 'sine', o2o: 2, o2l: 25, fc: 6000, fq: 0.6, fe: 1200, aa: 1.4, ad: 2, as: 0.7, ar: 2.5, fa: 1.2, fd: 2.5, fs: 0.5, fr: 2.5, lw: 'sine', lr: 0.6, ld: 25, lt: 'amp', cho: 50, rv: 60 } },
+  { cat: 'Pad', name: 'Ocean', p: { o1w: 'noise', o1l: 60, o2l: 0, ft: 'bandpass', fc: 500, fq: 1.2, fe: 900, aa: 2, ad: 2, as: 0.6, ar: 3, fa: 2, fd: 3, fs: 0.6, fr: 3, lw: 'sine', lr: 0.12, ld: 60, lt: 'filter', rv: 60, dlm: 15 } },
+
+  // ---- Bass ----
+  { cat: 'Bass', name: 'Sub bass', p: { o1w: 'sine', o1o: -1, o2w: 'triangle', o2o: -1, o2d: 0, o2l: 30, fc: 300, fq: 1, fe: 600, aa: 0.005, ad: 0.3, as: 0.8, ar: 0.15, fa: 0.01, fd: 0.2, fs: 0.3, fr: 0.15, lt: 'pitch', ld: 0 } },
+  { cat: 'Bass', name: 'Wobble bass', p: { o1w: 'sawtooth', o1o: -1, o2w: 'sawtooth', o2o: -1, o2d: 6, fc: 500, fq: 8, fe: 1500, aa: 0.005, ad: 0.4, as: 0.6, ar: 0.2, fa: 0.005, fd: 0.3, fs: 0.4, fr: 0.2, lw: 'triangle', lr: 3, ld: 70, lt: 'filter' } },
+  { cat: 'Bass', name: 'Acid bass', p: { o1w: 'sawtooth', o1o: -1, o2l: 0, fc: 400, fq: 14, fe: 3500, aa: 0.002, ad: 0.25, as: 0.1, ar: 0.15, fa: 0.001, fd: 0.2, fs: 0, fr: 0.1, lt: 'filter', ld: 0, drv: 30 } },
+  { cat: 'Bass', name: 'Reese bass', p: { o1w: 'sawtooth', o1o: -1, o1d: -12, o2w: 'sawtooth', o2o: -1, o2d: 12, fc: 450, fq: 2, fe: 500, aa: 0.01, ad: 0.5, as: 0.9, ar: 0.3, fa: 0.01, fd: 0.4, fs: 0.5, fr: 0.3, lw: 'sine', lr: 0.5, ld: 15, lt: 'filter', drv: 25 } },
+  { cat: 'Bass', name: 'Pluck bass', p: { o1w: 'square', o1o: -1, o2w: 'sawtooth', o2o: -1, o2l: 25, fc: 900, fq: 4, fe: 1500, aa: 0.002, ad: 0.3, as: 0, ar: 0.12, fa: 0.001, fd: 0.2, fs: 0, fr: 0.1, lt: 'pitch', ld: 0 } },
+  { cat: 'Bass', name: '808 bass', p: { o1w: 'sine', o1o: -2, o2l: 0, fc: 1000, fq: 0.5, fe: 0, aa: 0.001, ad: 1.2, as: 0, ar: 0.4, fa: 0.001, fd: 0.1, fs: 0, fr: 0.1, lt: 'pitch', ld: 0, drv: 20 } },
+  { cat: 'Bass', name: 'Rubber bass', p: { o1w: 'triangle', o1o: -1, o2w: 'square', o2o: -1, o2d: 0, o2l: 35, fc: 700, fq: 5, fe: 2000, aa: 0.003, ad: 0.35, as: 0.4, ar: 0.2, fa: 0.002, fd: 0.25, fs: 0.1, fr: 0.2, lt: 'filter', ld: 15, lr: 2 } },
+
+  // ---- Lead ----
+  { cat: 'Lead', name: 'Glitter lead', p: { o1w: 'sawtooth', o2w: 'square', o2d: 5, fc: 3500, fq: 9, fe: 3000, aa: 0.01, ad: 0.2, as: 0.7, ar: 0.25, fa: 0.01, fd: 0.3, fs: 0.4, fr: 0.3, lw: 'triangle', lr: 6.5, ld: 45, lt: 'pitch', dlm: 20, dlt: 0.25 } },
+  { cat: 'Lead', name: 'Laser lead', p: { o1w: 'square', o2w: 'sawtooth', o2o: 1, o2l: 25, fc: 4000, fq: 8, fe: 4000, aa: 0.005, ad: 0.6, as: 0.2, ar: 0.2, fa: 0.005, fd: 0.5, fs: 0, fr: 0.2, lw: 'sawtooth', lr: 12, ld: 30, lt: 'pitch', dlm: 25, dlt: 0.2, dlf: 40 } },
+  { cat: 'Lead', name: 'Screamer', p: { o1w: 'sawtooth', o2w: 'sawtooth', o2d: 10, ft: 'bandpass', fc: 1500, fq: 8, fe: 2500, aa: 0.02, ad: 0.3, as: 0.8, ar: 0.3, fa: 0.02, fd: 0.4, fs: 0.6, fr: 0.3, drv: 60, lw: 'sine', lr: 5.5, ld: 15, lt: 'pitch', rv: 20 } },
+  { cat: 'Lead', name: 'Mellow lead', p: { o1w: 'triangle', o2w: 'sine', o2o: 1, o2l: 25, fc: 2500, fq: 1.2, fe: 800, aa: 0.08, ad: 0.5, as: 0.8, ar: 0.6, fa: 0.1, fd: 0.8, fs: 0.6, fr: 0.6, lw: 'sine', lr: 5, ld: 18, lt: 'pitch', rv: 25 } },
+  { cat: 'Lead', name: 'Pulse lead', p: { o1w: 'pulse', o1pw: 25, o2w: 'pulse', o2pw: 75, o2l: 30, fc: 3000, fq: 4, fe: 1200, aa: 0.01, ad: 0.3, as: 0.75, ar: 0.25, fa: 0.01, fd: 0.4, fs: 0.5, fr: 0.3, lw: 'triangle', lr: 4, ld: 30, lt: 'pitch', dlm: 15, dlt: 0.3 } },
+  { cat: 'Lead', name: 'Retro lead', p: { o1w: 'square', o2w: 'square', o2d: 0, o2l: 0, fc: 6000, fq: 0.5, fe: 0, aa: 0.005, ad: 0.2, as: 0.8, ar: 0.1, lt: 'pitch', ld: 10, lr: 6, dlm: 35, dlt: 0.35, dlf: 45 } },
+
+  // ---- Keys ----
+  { cat: 'Keys', name: 'Electric piano', p: { o1w: 'triangle', o2w: 'sine', o2o: 1, o2l: 40, fc: 4000, fq: 0.8, fe: 1500, aa: 0.002, ad: 0.9, as: 0, ar: 0.6, fa: 0.001, fd: 0.6, fs: 0, fr: 0.3, lt: 'amp', lr: 4, ld: 10 } },
+  { cat: 'Keys', name: 'Bell', p: { o1w: 'sine', o2w: 'triangle', o2o: 2, o2l: 30, fc: 6000, fq: 0.7, fe: 0, aa: 0.001, ad: 1.5, as: 0, ar: 1.2, lw: 'sine', lr: 4, ld: 15, lt: 'amp', rv: 30 } },
+  { cat: 'Keys', name: 'Organ', p: { o1w: 'sine', o2w: 'sine', o2o: 1, o2d: 0, o2l: 60, fc: 8000, fq: 0.5, fe: 0, aa: 0.01, ad: 0.1, as: 1, ar: 0.05, lw: 'sine', lr: 6, ld: 8, lt: 'pitch' } },
+  { cat: 'Keys', name: 'Clav', p: { o1w: 'pulse', o1pw: 20, o2w: 'sawtooth', o2l: 20, fc: 3000, fq: 5, fe: 3000, aa: 0.001, ad: 0.25, as: 0, ar: 0.1, fa: 0.001, fd: 0.2, fs: 0, fr: 0.1, lt: 'pitch', ld: 0 } },
+  { cat: 'Keys', name: 'Celesta', p: { o1w: 'sine', o2w: 'sine', o2o: 2, o2l: 35, fc: 9000, fq: 0.5, fe: 0, aa: 0.001, ad: 0.8, as: 0, ar: 0.7, lt: 'amp', ld: 5, lr: 3, rv: 30 } },
+  { cat: 'Keys', name: 'Marimba', p: { o1w: 'triangle', o2w: 'sine', o2o: 1, o2l: 45, fc: 5000, fq: 0.6, fe: 1000, aa: 0.001, ad: 0.45, as: 0, ar: 0.3, fa: 0.001, fd: 0.2, fs: 0, fr: 0.2, lt: 'pitch', ld: 0 } },
+  { cat: 'Keys', name: 'Harpsichord', p: { o1w: 'sawtooth', o2w: 'square', o2o: 1, o2l: 20, fc: 2800, fq: 2, fe: 4000, aa: 0.001, ad: 0.5, as: 0, ar: 0.15, fa: 0.001, fd: 0.3, fs: 0, fr: 0.1, lt: 'pitch', ld: 0, rv: 15 } },
+
+  // ---- Pluck ----
+  { cat: 'Pluck', name: 'Bubblegum pluck', p: { o1w: 'square', o2w: 'triangle', o2o: 1, o2d: 0, fc: 2200, fq: 6, fe: 4000, aa: 0.002, ad: 0.25, as: 0, ar: 0.3, fa: 0.001, fd: 0.18, fs: 0, fr: 0.2, lt: 'pitch', ld: 0, dlm: 15 } },
+  { cat: 'Pluck', name: 'Harp pluck', p: { o1w: 'triangle', o2w: 'sine', o2o: 1, o2l: 30, fc: 4500, fq: 0.8, fe: 2500, aa: 0.001, ad: 0.7, as: 0, ar: 0.8, fa: 0.001, fd: 0.4, fs: 0, fr: 0.5, lt: 'pitch', ld: 0, rv: 40 } },
+  { cat: 'Pluck', name: 'Kalimba', p: { o1w: 'sine', o2w: 'triangle', o2o: 2, o2l: 20, fc: 7000, fq: 0.5, fe: 0, aa: 0.001, ad: 0.5, as: 0, ar: 0.4, lt: 'pitch', ld: 0, dlm: 30, dlt: 0.22, dlf: 30 } },
+  { cat: 'Pluck', name: 'Steel pluck', p: { o1w: 'sawtooth', o2w: 'triangle', o2l: 20, fc: 1800, fq: 3, fe: 3000, aa: 0.001, ad: 0.5, as: 0, ar: 0.5, fa: 0.001, fd: 0.2, fs: 0, fr: 0.2, lt: 'pitch', ld: 0, rv: 20 } },
+  { cat: 'Pluck', name: 'Synth pluck', p: { o1w: 'square', o1pw: 40, o2w: 'sawtooth', o2l: 30, ft: 'bandpass', fc: 1200, fq: 6, fe: 2500, aa: 0.001, ad: 0.3, as: 0, ar: 0.2, fa: 0.001, fd: 0.25, fs: 0, fr: 0.2, lt: 'pitch', ld: 0, dlm: 20 } },
+
+  // ---- Brass ----
+  { cat: 'Brass', name: 'Brass', p: { o1w: 'sawtooth', o2w: 'sawtooth', o2d: 5, fc: 1200, fq: 2, fe: 2000, aa: 0.08, ad: 0.4, as: 0.8, ar: 0.2, fa: 0.1, fd: 0.6, fs: 0.6, fr: 0.3, lw: 'sine', lr: 5, ld: 10, lt: 'pitch' } },
+  { cat: 'Brass', name: 'Trumpet', p: { o1w: 'sawtooth', o2w: 'square', o2o: 0, o2l: 25, o2d: 4, fc: 2000, fq: 1.5, fe: 2500, aa: 0.05, ad: 0.3, as: 0.85, ar: 0.12, fa: 0.06, fd: 0.4, fs: 0.7, fr: 0.2, lw: 'sine', lr: 5.5, ld: 12, lt: 'pitch', rv: 15 } },
+  { cat: 'Brass', name: 'Synth brass', p: { o1w: 'sawtooth', o1u: 3, o1sp: 10, o2w: 'sawtooth', o2u: 3, o2sp: 10, o2o: 0, o2d: 0, fc: 1000, fq: 1, fe: 2500, aa: 0.1, ad: 0.5, as: 0.8, ar: 0.25, fa: 0.1, fd: 0.6, fs: 0.5, fr: 0.3, lw: 'sine', lr: 5, ld: 5, lt: 'pitch', cho: 20 } },
+  { cat: 'Brass', name: 'Horn', p: { o1w: 'triangle', o2w: 'sawtooth', o2l: 25, fc: 1500, fq: 1.2, fe: 1200, aa: 0.15, ad: 0.6, as: 0.75, ar: 0.4, fa: 0.15, fd: 0.8, fs: 0.5, fr: 0.4, lw: 'sine', lr: 5, ld: 14, lt: 'pitch', rv: 30 } },
+  { cat: 'Brass', name: 'Stab brass', p: { o1w: 'sawtooth', o2w: 'square', o2d: 6, fc: 1800, fq: 2, fe: 3000, aa: 0.005, ad: 0.25, as: 0.2, ar: 0.15, fa: 0.005, fd: 0.2, fs: 0.1, fr: 0.15, lt: 'pitch', ld: 0, drv: 20 } },
+
+  // ---- FX ----
+  { cat: 'FX', name: 'Chiptune', p: { o1w: 'square', o2w: 'square', o2d: 0, o2l: 0, fc: 12000, fq: 0.1, fe: 0, aa: 0.001, ad: 0.05, as: 1, ar: 0.02, lt: 'pitch', ld: 0 } },
+  { cat: 'FX', name: 'Hi-hat', p: { o1w: 'noise', o1l: 80, o2l: 0, fc: 8000, fq: 0.5, fe: 0, aa: 0.001, ad: 0.05, as: 0, ar: 0.03, lt: 'pitch', ld: 0 } },
+  { cat: 'FX', name: 'Snare', p: { o1w: 'noise', o1l: 60, o2w: 'triangle', o2o: -1, o2l: 50, ft: 'bandpass', fc: 2000, fq: 1, fe: 0, aa: 0.001, ad: 0.18, as: 0, ar: 0.1, lt: 'pitch', ld: 0, drv: 15 } },
+  { cat: 'FX', name: 'Kick', p: { o1w: 'sine', o1o: -2, o2l: 0, fc: 2000, fq: 0.5, fe: 2000, aa: 0.001, ad: 0.35, as: 0, ar: 0.1, fa: 0.001, fd: 0.06, fs: 0, fr: 0.05, lt: 'pitch', ld: 0 } },
+  { cat: 'FX', name: 'Wind', p: { o1w: 'noise', o1l: 70, o2l: 0, ft: 'bandpass', fc: 700, fq: 3, fe: 800, aa: 1.2, ad: 1, as: 0.7, ar: 1.5, fa: 1, fd: 2, fs: 0.8, fr: 1.5, lt: 'amp', lr: 0.2, ld: 40, rv: 40 } },
+  { cat: 'FX', name: 'Laser zap', p: { o1w: 'square', o2l: 0, fc: 300, fq: 6, fe: 7000, aa: 0.001, ad: 0.5, as: 0, ar: 0.1, fa: 0.001, fd: 0.35, fs: 0, fr: 0.1, lt: 'pitch', ld: 0, drv: 25 } },
+  { cat: 'FX', name: 'Rise', p: { o1w: 'noise', o1l: 60, o2l: 0, ft: 'highpass', fc: 400, fq: 2, fe: 6000, aa: 2, ad: 1, as: 1, ar: 0.5, fa: 2, fd: 1, fs: 1, fr: 0.5, lt: 'amp', lr: 1, ld: 20, rv: 30 } },
+  { cat: 'FX', name: 'Retro sweep', p: { o1w: 'sawtooth', o2w: 'square', o2l: 30, fc: 300, fq: 6, fe: 6000, aa: 0.01, ad: 0.5, as: 0.5, ar: 0.5, fa: 0.3, fd: 1, fs: 0.2, fr: 0.5, lw: 'triangle', lr: 8, ld: 80, lt: 'filter', dlm: 25 } },
+  { cat: 'FX', name: 'Vinyl crackle', p: { o1w: 'noise', o1l: 15, o2l: 0, ft: 'highpass', fc: 2500, fq: 0.5, fe: 0, aa: 0.8, ad: 1, as: 1, ar: 0.5, lt: 'amp', lr: 6, ld: 40, rv: 20 } },
+  { cat: 'FX', name: 'Sci-fi wobble', p: { o1w: 'pulse', o1pw: 30, o2w: 'noise', o2l: 12, fc: 900, fq: 9, fe: 2000, aa: 0.3, ad: 1, as: 0.6, ar: 1, lw: 'sine', lr: 3, ld: 80, lt: 'filter', cho: 40, dlm: 30, dlt: 0.4, dlf: 55, rv: 35 } }
+];
+const CATS = ['Pad', 'Bass', 'Lead', 'Keys', 'Pluck', 'Brass', 'FX', 'Saját'];
+
+// Panel layout: sl = slider, sg = segmented choice
+const sl = (k, label, min, max, step, unit = '', dec = 0, mult = 1) => ({ type: 'sl', k, label, min, max, step, unit, dec, mult });
+const sg = (k, label, opts) => ({ type: 'sg', k, label, opts });
+
+const PANELS = [
+  { title: 'Oscillator 1', rows: [
+    sg('o1w', 'Waveform', WAVES),
+    sl('o1o', 'Octave', -2, 2, 1, '', 0),
+    sl('o1d', 'Detune', -50, 50, 1, ' cent', 0),
+    sl('o1l', 'Level', 0, 100, 1, '%', 0),
+    sl('o1pw', 'Pulse width', 5, 95, 1, '%', 0),
+    sl('o1u', 'Unison', 1, 7, 1, '', 0),
+    sl('o1sp', 'Unison spread', 0, 50, 1, ' cent', 0)
+  ]},
+  { title: 'Oscillator 2', rows: [
+    sg('o2w', 'Waveform', WAVES),
+    sl('o2o', 'Octave', -2, 2, 1, '', 0),
+    sl('o2d', 'Detune', -50, 50, 1, ' cent', 0),
+    sl('o2l', 'Level', 0, 100, 1, '%', 0),
+    sl('o2pw', 'Pulse width', 5, 95, 1, '%', 0),
+    sl('o2u', 'Unison', 1, 7, 1, '', 0),
+    sl('o2sp', 'Unison spread', 0, 50, 1, ' cent', 0)
+  ]},
+  { title: 'Filter', rows: [
+    sg('ft', 'Type', [['lowpass', 'Low-pass'], ['highpass', 'High-pass'], ['bandpass', 'Band-pass']]),
+    sl('fc', 'Cutoff', 40, 12000, 1, ' Hz', 0),
+    sl('fq', 'Resonance', 0.1, 20, 0.1, '', 1),
+    sl('fe', 'Env Amount', 0, 8000, 10, ' Hz', 0)
+  ]},
+  { title: 'Amp Envelope', rows: [
+    sl('aa', 'Attack', 0.001, 2, 0.001, ' s', 2),
+    sl('ad', 'Decay', 0.01, 3, 0.01, ' s', 2),
+    sl('as', 'Sustain', 0, 1, 0.01, '%', 0, 100),
+    sl('ar', 'Release', 0.01, 4, 0.01, ' s', 2)
+  ]},
+  { title: 'Filter Envelope', rows: [
+    sl('fa', 'Attack', 0.001, 2, 0.001, ' s', 2),
+    sl('fd', 'Decay', 0.01, 3, 0.01, ' s', 2),
+    sl('fs', 'Sustain', 0, 1, 0.01, '%', 0, 100),
+    sl('fr', 'Release', 0.01, 4, 0.01, ' s', 2)
+  ]},
+  { title: 'LFO', rows: [
+    sg('lw', 'Waveform', LFO_WAVES),
+    sl('lr', 'Rate', 0.1, 20, 0.1, ' Hz', 1),
+    sl('ld', 'Depth', 0, 100, 1, '%', 0),
+    sg('lt', 'Target', [['pitch', 'Pitch'], ['filter', 'Filter'], ['amp', 'Amp']])
+  ]},
+  { title: 'Effects', rows: [
+    sl('drv', 'Drive', 0, 100, 1, '%', 0),
+    sl('cho', 'Chorus', 0, 100, 1, '%', 0),
+    sl('dlm', 'Delay mix', 0, 100, 1, '%', 0),
+    sl('dlt', 'Delay time', 0.05, 1, 0.01, ' s', 2),
+    sl('dlf', 'Feedback', 0, 90, 1, '%', 0),
+    sl('rv', 'Reverb', 0, 100, 1, '%', 0)
+  ]},
+  { title: 'Arpeggiator', rows: [
+    sg('arp', 'Power', [['off', 'Off'], ['on', 'On']]),
+    sg('arpP', 'Pattern', [['up', 'Up'], ['down', 'Down'], ['updown', 'Up-Down'], ['random', 'Random']]),
+    sg('arpD', 'Rate', [['2', '1/8'], ['4', '1/16'], ['8', '1/32']]),
+    sl('arpBpm', 'Tempo', 60, 200, 1, ' BPM', 0),
+    sl('arpOct', 'Octaves', 1, 4, 1, '', 0),
+    sl('arpGate', 'Gate', 10, 100, 1, '%', 0)
+  ]},
+  { title: 'Master', rows: [
+    sl('vol', 'Volume', 0, 100, 1, '%', 0),
+    sl('vs', 'Velocity', 0, 100, 1, '%', 0)
+  ]}
+];
+
+// Every slider parameter, used by the macro knobs
+const slRows = [];
+PANELS.forEach(p => p.rows.forEach(r => {
+  if (r.type === 'sl') slRows.push({ k: r.k, name: p.title + ' · ' + r.label, r });
+}));
+const slDef = k => slRows.find(x => x.k === k).r;
+
+// The 8 physical knobs. cc = the MIDI control number they send; default guesses, change with Tanulás.
+const MACROS = [
+  { k: 'fc', cc: 70 }, { k: 'fq', cc: 71 }, { k: 'aa', cc: 72 }, { k: 'ar', cc: 73 },
+  { k: 'lr', cc: 74 }, { k: 'ld', cc: 75 }, { k: 'o2d', cc: 76 }, { k: 'vol', cc: 77 }
+];
+let learnIdx = null;
+
+// Hungarian tooltips shown when hovering a control
+const HINT = {
+  o1w: 'Hullámforma: az oszcillátor alakja, ez határozza meg a hangszínt. Noise = zaj.',
+  o2w: 'Hullámforma: az oszcillátor alakja, ez határozza meg a hangszínt. Noise = zaj.',
+  o1o: 'Oktáv: 12 félhanggal tolja a hangmagasságot.',
+  o2o: 'Oktáv: 12 félhanggal tolja a hangmagasságot.',
+  o1d: 'Hangolás (detune): apró magasságeltérés centben, 100 cent = 1 félhang.',
+  o2d: 'Hangolás (detune): apró magasságeltérés centben, 100 cent = 1 félhang.',
+  o1l: 'Szint: az oszcillátor hangereje a keverékben.',
+  o2l: 'Szint: az oszcillátor hangereje a keverékben.',
+  o1pw: 'Pulzusszélesség: a Pulse hullám kitöltése. 50% = négyszög.',
+  o2pw: 'Pulzusszélesség: a Pulse hullám kitöltése. 50% = négyszög.',
+  o1u: 'Unison: hány példányban szól az oszcillátor, enyhén eltérő hangolással.',
+  o2u: 'Unison: hány példányban szól az oszcillátor, enyhén eltérő hangolással.',
+  o1sp: 'Unison-szóródás: milyen messze húzódnak a példányok a hangolástól (cent).',
+  o2sp: 'Unison-szóródás: milyen messze húzódnak a példányok a hangolástól (cent).',
+  ft: 'Szűrő típusa: melyik frekvenciatartományt engedi át.',
+  fc: 'Vágási frekvencia: ahol a szűrő elkezd hatni (Hz).',
+  fq: 'Rezonancia: a vágás környéki kiemelés, magasnál sípoló hang.',
+  fe: 'Borítékmennyiség: mennyivel tolja fel a szűrőboríték a vágást.',
+  lw: 'LFO hullámforma: a mozgás alakja.',
+  lr: 'LFO sebesség (Hz): milyen gyorsan mozog.',
+  ld: 'LFO mélység: a hatás erőssége.',
+  lt: 'LFO cél: hangmagasság = vibrato, szűrő = wah, hangerő = tremolo.',
+  drv: 'Drive: torzítás, telítettebb és harapósabb hang.',
+  cho: 'Chorus: késleltetett, mozgó másolat keverése, vastagabb hang.',
+  dlm: 'Delay mix: a visszhang aránya a hangban.',
+  dlt: 'Delay time: a visszhang késleltetése másodpercben.',
+  dlf: 'Feedback: hány ismétlés hallatszik a visszhangban.',
+  rv: 'Reverb: a térhatás mértéke.',
+  arp: 'Arpeggiátor be/ki: a lenyomott hangokat egymás után, sorban játssza.',
+  arpP: 'Minta: a hangok sorrendje (fel, le, fel-le, véletlen).',
+  arpD: 'Ritmus: egy lépés hossza (1/8, 1/16, 1/32).',
+  arpBpm: 'Tempó: percenkénti ütemszám (BPM).',
+  arpOct: 'Oktávtartomány: hány oktávon át ismétli a hangokat.',
+  arpGate: 'Gate: a lépés hány százalékában szól a hang. Alacsony érték pattogó.',
+  vol: 'Főhangerő.',
+  vs: 'Érzékenység (velocity): mennyire számít, milyen erősen üted meg a billentyűt vagy a padet. 0% = mindig egyforma hangerő.'
+};
+const ENV_HINT = {
+  a: 'Felfutás (Attack): idő a csúcsig a billentyű lenyomásakor.',
+  d: 'Lecsengés (Decay): idő a csúcsról a kitartási szintre.',
+  s: 'Kitartás (Sustain): a szint, amíg a billentyű le van nyomva.',
+  r: 'Elengedés (Release): a hang elhalkulásának ideje a felengedés után.'
+};
+function hintFor(k) {
+  if (HINT[k]) return HINT[k];
+  if (/^[af][adsr]$/.test(k)) return ENV_HINT[k[1]];
+  return '';
+}
+
+// ---------- Audio graph ----------
+const AC = window.AudioContext || window.webkitAudioContext;
+const ctx = new AC();
+const master = ctx.createGain();      // voice bus
+const comp = ctx.createDynamicsCompressor();
+const analyser = ctx.createAnalyser();
+analyser.fftSize = 2048;
+
+// Effect chain: master -> drive -> chorus -> delay -> reverb -> comp -> analyser -> out
+// Each effect is a parallel dry/wet pair; the wet/dry gains are set in fxUpdate().
+const drvIn = ctx.createGain(), drvDry = ctx.createGain(), drvWet = ctx.createGain(), drvOut = ctx.createGain();
+const shaper = ctx.createWaveShaper();
+shaper.oversample = '2x';
+master.connect(drvIn);
+drvIn.connect(drvDry); drvDry.connect(drvOut);
+drvIn.connect(shaper); shaper.connect(drvWet); drvWet.connect(drvOut);
+
+const chDry = ctx.createGain(), chWet = ctx.createGain(), chOut = ctx.createGain();
+const chDelay = ctx.createDelay(0.1), chLfo = ctx.createOscillator(), chLfoG = ctx.createGain();
+chDelay.delayTime.value = 0.02;
+chLfo.frequency.value = 0.7;
+chLfoG.gain.value = 0.004;
+chLfo.connect(chLfoG); chLfoG.connect(chDelay.delayTime);
+chLfo.start();
+drvOut.connect(chDry); chDry.connect(chOut);
+drvOut.connect(chDelay); chDelay.connect(chWet); chWet.connect(chOut);
+
+const dlDry = ctx.createGain(), dlWet = ctx.createGain(), dlOut = ctx.createGain();
+const dly = ctx.createDelay(2), dlFb = ctx.createGain();
+dly.delayTime.value = 0.3;
+chOut.connect(dlDry); dlDry.connect(dlOut);
+chOut.connect(dly); dly.connect(dlFb); dlFb.connect(dly); dly.connect(dlWet); dlWet.connect(dlOut);
+
+const rvDry = ctx.createGain(), rvWet = ctx.createGain(), rvOut = ctx.createGain();
+const conv = ctx.createConvolver();
+dlOut.connect(rvDry); rvDry.connect(rvOut);
+dlOut.connect(conv); conv.connect(rvWet); rvWet.connect(rvOut);
+
+rvOut.connect(comp);
+comp.connect(analyser);
+analyser.connect(ctx.destination);
+
+function makeIR(sec) {
+  const len = Math.floor(ctx.sampleRate * sec);
+  const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = buf.getChannelData(c);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  }
+  return buf;
+}
+conv.buffer = makeIR(2.5);
+
+// Shared noise buffer for the Noise waveform
+const noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+{
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+}
+
+// Drive curve, recomputed only when the amount changes
+let lastDriveK = -1;
+function driveCurve(k) {
+  const n = 1024, c = new Float32Array(n), norm = Math.tanh(k);
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * 2 - 1;
+    c[i] = Math.tanh(k * x) / norm;
+  }
+  return c;
+}
+
+function fxUpdate() {
+  const t = ctx.currentTime, tc = 0.03;
+  const dm = S.drv / 100;
+  drvDry.gain.setTargetAtTime(1 - dm * 0.5, t, tc);
+  drvWet.gain.setTargetAtTime(dm, t, tc);
+  const k = 1 + S.drv / 100 * 9;
+  if (Math.abs(k - lastDriveK) > 0.01) { shaper.curve = driveCurve(k); lastDriveK = k; }
+
+  const c = S.cho / 100;
+  chDry.gain.setTargetAtTime(1 - c * 0.5, t, tc);
+  chWet.gain.setTargetAtTime(c * 0.8, t, tc);
+
+  const d = S.dlm / 100;
+  dlDry.gain.setTargetAtTime(1 - d * 0.5, t, tc);
+  dlWet.gain.setTargetAtTime(d * 0.8, t, tc);
+  dly.delayTime.setTargetAtTime(S.dlt, t, 0.05);
+  dlFb.gain.setTargetAtTime(S.dlf / 100 * 0.9, t, tc);
+
+  const r = S.rv / 100;
+  rvDry.gain.setTargetAtTime(1 - r * 0.5, t, tc);
+  rvWet.gain.setTargetAtTime(r * 0.8, t, tc);
+}
+
+// One shared LFO, routed into each voice through three depth gains
+const lfo = ctx.createOscillator();
+const lfP = ctx.createGain();
+const lfF = ctx.createGain();
+const lfA = ctx.createGain();
+lfo.connect(lfP); lfo.connect(lfF); lfo.connect(lfA);
+lfo.start();
+
+const voices = new Map();
+const MAX_VOICES = 12;
+// Computer keys mapped to semitones from the current base note.
+// White keys: A S D F J K L É = C D E F G A B C. Black keys: W E T Z U = C# D# F# G# A#.
+const KEYMAP = { a: 0, w: 1, s: 2, e: 3, d: 4, f: 5, t: 6, j: 7, z: 8, k: 9, u: 10, l: 11, 'é': 12 };
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+let octShift = 0;
+let bend = 0;
+
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const midiF = n => 440 * Math.pow(2, (n - 69) / 12);
+const baseNote = () => 48 + octShift * 12;
+
+function ensureCtx() {
+  if (ctx.state !== 'running') ctx.resume();
+}
+
+// Pulse waves are built as PeriodicWaves (Fourier series), cached by pulse width
+const pulseCache = new Map();
+function pulseWave(pw) {
+  const key = Math.round(pw);
+  if (!pulseCache.has(key)) {
+    const a = 2 * Math.PI * (key / 100), N = 64;
+    const re = new Float32Array(N), im = new Float32Array(N);
+    for (let n = 1; n < N; n++) {
+      re[n] = 2 * Math.sin(n * a) / (n * Math.PI);
+      im[n] = 2 * (1 - Math.cos(n * a)) / (n * Math.PI);
+    }
+    pulseCache.set(key, ctx.createPeriodicWave(re, im));
+  }
+  return pulseCache.get(key);
+}
+
+// Creates one sound source: an oscillator, a Pulse oscillator, or a noise source
+function makeSource(type, pw, freq, detune) {
+  if (type === 'noise') {
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuf;
+    src.loop = true;
+    src.detune.value = detune;
+    return src;
+  }
+  const o = ctx.createOscillator();
+  if (type === 'pulse') o.setPeriodicWave(pulseWave(pw));
+  else o.type = type;
+  o.frequency.value = freq;
+  o.detune.value = detune;
+  return o;
+}
+
+// Detune for one unison copy: base detune + bend + its spread offset
+const detuneOf = (gr, o) => S['o' + gr.i + 'd'] + bend + o._off;
+
+// Maps the raw velocity (0–1) to a loudness factor. Velocity sensitivity S.vs decides how much it matters:
+// 0% gives a constant loudness, 100% gives full dynamics. A gentle curve lifts soft hits so pads are not too quiet.
+function velocityGain(vel) {
+  const s = S.vs / 100;
+  const curved = Math.pow(clamp(vel, 0, 1), 0.6);
+  return (1 - s) * 0.8 + s * (0.2 + 0.8 * curved);
+}
+
+function noteOn(n, vel = 0.8) {
+  ensureCtx();
+  if (voices.has(n)) releaseVoice(n, true);
+  if (voices.size >= MAX_VOICES) releaseVoice(voices.keys().next().value, true);
+
+  const t = ctx.currentTime;
+  const filt = ctx.createBiquadFilter();
+  filt.type = S.ft;
+  filt.Q.value = S.fq;
+  const amp = ctx.createGain();
+  amp.gain.value = 0;
+  filt.connect(amp);
+  amp.connect(master);
+
+  const f = midiF(n);
+  const groups = [], conns = [];
+  [1, 2].forEach(i => {
+    const type = S['o' + i + 'w'];
+    const uni = Math.max(1, Math.round(S['o' + i + 'u']));
+    const sp = S['o' + i + 'sp'];
+    const g = ctx.createGain();
+    g.gain.value = S['o' + i + 'l'] / 100 * 0.5 / Math.sqrt(uni);
+    g.connect(filt);
+    const oscs = [];
+    for (let j = 0; j < uni; j++) {
+      const off = uni > 1 ? ((j / (uni - 1)) * 2 - 1) * sp : 0;
+      const o = makeSource(type, S['o' + i + 'pw'], f * Math.pow(2, S['o' + i + 'o']), S['o' + i + 'd'] + bend + off);
+      o._off = off;
+      o.connect(g);
+      if (type === 'noise') o.start(t, Math.random() * 2); else o.start(t);
+      conns.push([lfP, o.detune]);
+      oscs.push(o);
+    }
+    groups.push({ i, g, oscs });
+  });
+  conns.push([lfF, filt.frequency], [lfA, amp.gain]);
+  conns.forEach(([s, p]) => s.connect(p));
+
+  // Filter envelope: attack to peak, then decay toward sustain level
+  const fc = S.fc;
+  const peak = clamp(fc + S.fe, 20, 20000);
+  const sus = clamp(fc + S.fe * S.fs, 20, 20000);
+  const fA = S.fa + 0.005;
+  filt.frequency.setValueAtTime(fc, t);
+  filt.frequency.linearRampToValueAtTime(peak, t + fA);
+  filt.frequency.setTargetAtTime(sus, t + fA, S.fd / 4 + 0.001);
+
+  // Amplitude envelope, scaled by velocity
+  const peakA = 0.35 * velocityGain(vel);
+  const aA = S.aa + 0.002;
+  amp.gain.setValueAtTime(0, t);
+  amp.gain.linearRampToValueAtTime(peakA, t + aA);
+  amp.gain.setTargetAtTime(peakA * S.as, t + aA, S.ad / 4 + 0.001);
+
+  voices.set(n, { groups, conns, filt, amp, f });
+}
+
+function noteOff(n) {
+  releaseVoice(n, false);
+}
+
+function releaseVoice(n, quick) {
+  const v = voices.get(n);
+  if (!v) return;
+  voices.delete(n);
+  const t = ctx.currentTime;
+  const rel = quick ? 0.01 : S.ar + 0.005;
+  const tc = quick ? 0.005 : S.ar / 4 + 0.001;
+
+  v.amp.gain.cancelScheduledValues(t);
+  v.amp.gain.setValueAtTime(v.amp.gain.value, t);
+  v.amp.gain.setTargetAtTime(0, t, tc);
+
+  v.filt.frequency.cancelScheduledValues(t);
+  v.filt.frequency.setValueAtTime(v.filt.frequency.value, t);
+  v.filt.frequency.setTargetAtTime(S.fc, t, tc);
+
+  const all = v.groups.flatMap(g => g.oscs);
+  all.forEach(o => o.stop(t + rel + 0.25));
+  setTimeout(() => {
+    v.conns.forEach(([s, p]) => { try { s.disconnect(p); } catch (e) {} });
+    all.forEach(o => o.disconnect());
+    v.groups.forEach(g => g.g.disconnect());
+    v.filt.disconnect();
+    v.amp.disconnect();
+  }, (rel + 0.3) * 1000);
+}
+
+function setBend(cents) {
+  bend = cents;
+  const t = ctx.currentTime;
+  voices.forEach(v => v.groups.forEach(gr => gr.oscs.forEach(o => {
+    o.detune.setTargetAtTime(detuneOf(gr, o), t, 0.01);
+  })));
+}
+
+function updateLFO() {
+  const t = ctx.currentTime;
+  lfo.type = S.lw;
+  lfo.frequency.setTargetAtTime(S.lr, t, 0.02);
+  const d = S.ld / 100;
+  lfP.gain.setTargetAtTime(S.lt === 'pitch' ? d * 100 : 0, t, 0.02);
+  lfF.gain.setTargetAtTime(S.lt === 'filter' ? d * 2500 : 0, t, 0.02);
+  lfA.gain.setTargetAtTime(S.lt === 'amp' ? d * 0.25 : 0, t, 0.02);
+}
+
+// Live changes reach the notes already sounding. Unison count changes apply to the next note.
+function liveUpdate() {
+  const t = ctx.currentTime;
+  voices.forEach(v => {
+    v.filt.type = S.ft;
+    v.filt.Q.setTargetAtTime(S.fq, t, 0.02);
+    v.groups.forEach(gr => {
+      gr.g.gain.setTargetAtTime(S['o' + gr.i + 'l'] / 100 * 0.5 / Math.sqrt(gr.oscs.length), t, 0.02);
+      const type = S['o' + gr.i + 'w'];
+      gr.oscs.forEach(o => {
+        if (o.frequency) {
+          o.frequency.setTargetAtTime(v.f * Math.pow(2, S['o' + gr.i + 'o']), t, 0.01);
+          if (type === 'pulse') o.setPeriodicWave(pulseWave(S['o' + gr.i + 'pw']));
+          else if (OSC_TYPES.includes(type)) o.type = type;
+        }
+        o.detune.setTargetAtTime(detuneOf(gr, o), t, 0.01);
+      });
+    });
+  });
+}
+
+function onChange() {
+  const t = ctx.currentTime;
+  master.gain.setTargetAtTime(S.vol / 100 * 0.9, t, 0.02);
+  updateLFO();
+  liveUpdate();
+  fxUpdate();
+  arpRefresh();
+}
+
+// ---------- Arpeggiator ----------
+// held: every note currently held down on any input (keyboard, mouse, MIDI)
+const held = new Set();
+let arpTimer = null;
+let arpGateTimer = null;
+let arpLast = null;
+let arpStep = 0;
+
+const arpInterval = () => 60000 / S.arpBpm / parseFloat(S.arpD);
+
+function arpSequence() {
+  const base = [...held].sort((a, b) => a - b);
+  const seq = [];
+  for (let o = 0; o < S.arpOct; o++) base.forEach(n => seq.push(n + 12 * o));
+  return seq;
+}
+
+function arpTick() {
+  const seq = arpSequence();
+  if (!seq.length) return;
+  const len = seq.length;
+  let idx;
+  if (S.arpP === 'down') {
+    idx = len - 1 - (arpStep % len);
+  } else if (S.arpP === 'updown') {
+    const cycle = Math.max(1, 2 * len - 2);
+    const pos = arpStep % cycle;
+    idx = pos < len ? pos : cycle - pos;
+  } else if (S.arpP === 'random') {
+    idx = Math.floor(Math.random() * len);
+  } else {
+    idx = arpStep % len;
+  }
+  arpStep++;
+  const n = seq[idx];
+  const stepMs = arpInterval();
+  noteOn(n, 0.85);
+  arpLast = n;
+  clearTimeout(arpGateTimer);
+  arpGateTimer = setTimeout(() => {
+    noteOff(n);
+    if (arpLast === n) arpLast = null;
+  }, stepMs * S.arpGate / 100);
+}
+
+function arpStart() {
+  arpStop();
+  arpStep = 0;
+  arpTick();
+  arpTimer = setInterval(arpTick, arpInterval());
+}
+
+function arpStop() {
+  if (arpTimer) clearInterval(arpTimer);
+  clearTimeout(arpGateTimer);
+  arpTimer = null;
+  if (arpLast !== null) noteOff(arpLast);
+  arpLast = null;
+}
+
+function arpRefresh() {
+  if (arpTimer) {
+    clearInterval(arpTimer);
+    arpTimer = setInterval(arpTick, arpInterval());
+  }
+}
+
+// All note input goes through these two, so the arpeggiator and sustain can intercept
+const sustained = new Set();
+let sustainOn = false;
+
+function pressNote(n, vel = 0.8) {
+  if (S.arp === 'on') {
+    held.add(n);
+    if (!arpTimer) arpStart();
+    return;
+  }
+  sustained.delete(n);
+  noteOn(n, vel);
+}
+
+function releaseNote(n) {
+  if (S.arp === 'on') {
+    held.delete(n);
+    if (held.size === 0) arpStop();
+    return;
+  }
+  if (sustainOn) {
+    sustained.add(n);
+    return;
+  }
+  noteOff(n);
+}
+
+// Sustain (Space): notes released while Space is held keep ringing until Space is let go
+function setSustain(on) {
+  sustainOn = on;
+  document.getElementById('sus').classList.toggle('on', on);
+  if (!on) {
+    const stillHeld = physicallyHeld();
+    sustained.forEach(n => {
+      if (!stillHeld.has(n)) {
+        noteOff(n);
+        flashKey(n, false);
+      }
+    });
+    sustained.clear();
+  }
+}
+
+function physicallyHeld() {
+  const s = new Set(heldKeys.values());
+  if (pointerNote !== null) s.add(pointerNote);
+  return s;
+}
+
+// ---------- Macro knobs (MIDI CC) ----------
+// Maps a 0–127 controller value onto a slider's range and step
+function applyNorm(k, norm) {
+  const d = slDef(k);
+  const raw = d.min + norm * (d.max - d.min);
+  const stepped = Math.round((raw - d.min) / d.step) * d.step + d.min;
+  S[k] = clamp(parseFloat(stepped.toFixed(6)), d.min, d.max);
+  syncUI();
+  onChange();
+}
+
+function buildMacros() {
+  const grid = document.getElementById('grid');
+  const sec = document.createElement('section');
+  sec.className = 'panel';
+  sec.innerHTML = '<h2>Makró gombok (MIDI)</h2>' +
+    '<p class="hint">Válassz paramétert minden gombhoz. A Tanulás gombbal mozgasd meg a fizikai gombot, és a program hozzárendeli.</p>';
+  const opts = slRows.map(x => '<option value="' + x.k + '">' + x.name + '</option>').join('');
+  MACROS.forEach((m, i) => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML =
+      '<div class="lbl"><span id="mc-' + i + '"></span><output id="mo-' + i + '"></output></div>' +
+      '<div class="mrow"><select id="ms-' + i + '">' + opts + '</select>' +
+      '<button type="button" class="pill ghost" id="ml-' + i + '">Tanulás</button></div>';
+    sec.appendChild(row);
+    const sel = row.querySelector('select');
+    sel.value = m.k;
+    sel.addEventListener('change', () => {
+      m.k = sel.value;
+      updateMacroOuts();
+    });
+    row.querySelector('button').addEventListener('click', () => {
+      learnIdx = learnIdx === i ? null : i;
+      refreshLearnUI();
+    });
+  });
+  grid.appendChild(sec);
+  refreshLearnUI();
+}
+
+function refreshLearnUI() {
+  MACROS.forEach((m, i) => {
+    const b = document.getElementById('ml-' + i);
+    const learning = learnIdx === i;
+    b.textContent = learning ? 'Figyelek…' : 'Tanulás';
+    b.classList.toggle('learning', learning);
+    document.getElementById('mc-' + i).textContent = 'Gomb ' + (i + 1) + ' · CC ' + m.cc;
+  });
+  updateMacroOuts();
+}
+
+function updateMacroOuts() {
+  MACROS.forEach((m, i) => {
+    const d = slDef(m.k);
+    const out = document.getElementById('mo-' + i);
+    if (out) out.textContent = (S[m.k] * d.mult).toFixed(d.dec) + d.unit;
+    const sel = document.getElementById('ms-' + i);
+    if (sel) sel.value = m.k;
+  });
+}
+
+// ---------- Octave follow (device) ----------
+// Many keyboards change octave on the device without sending any message, so the
+// program follows the octave of played notes that fall outside the visible keyboard.
+// Drum pad notes (36–43) are excluded so hitting a pad does not jump the octave.
+function followDeviceOctave(n) {
+  if (n >= 36 && n <= 43) return;
+  const base = baseNote();
+  if (n >= base && n <= base + 12) return;
+  const shift = clamp(Math.floor((n - 48) / 12), -2, 2);
+  if (shift === octShift) return;
+  octShift = shift;
+  buildKB();
+  setStatus('Oktáv az eszközről: ' + document.getElementById('octLbl').textContent);
+}
+
+// ---------- UI ----------
+function showOut(r) {
+  document.getElementById('o-' + r.k).textContent = (S[r.k] * r.mult).toFixed(r.dec) + r.unit;
+}
+
+function syncUI() {
+  PANELS.forEach(p => p.rows.forEach(r => {
+    if (r.type === 'sl') {
+      document.getElementById('r-' + r.k).value = S[r.k];
+      showOut(r);
+    } else {
+      document.querySelectorAll('#s-' + r.k + ' button').forEach(b => {
+        b.classList.toggle('on', b.dataset.v === String(S[r.k]));
+      });
+    }
+  }));
+  updateMacroOuts();
+}
+
+// Called after any preset, reset, randomize or MIDI change to refresh everything
+function applyState() {
+  syncUI();
+  onChange();
+  if (S.arp !== 'on') { arpStop(); held.clear(); }
+}
+
+function buildPanels() {
+  const grid = document.getElementById('grid');
+  PANELS.forEach(p => {
+    const sec = document.createElement('section');
+    sec.className = 'panel';
+    sec.innerHTML = '<h2>' + p.title + '</h2>';
+    p.rows.forEach(r => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.title = hintFor(r.k);
+      if (r.type === 'sl') {
+        row.innerHTML =
+          '<div class="lbl"><span>' + r.label + '</span><output id="o-' + r.k + '"></output></div>' +
+          '<input type="range" id="r-' + r.k + '" min="' + r.min + '" max="' + r.max + '" step="' + r.step + '">';
+        const el = row.querySelector('input');
+        el.addEventListener('input', () => {
+          S[r.k] = parseFloat(el.value);
+          showOut(r);
+          onChange();
+        });
+      } else {
+        row.innerHTML =
+          '<div class="lbl"><span>' + r.label + '</span></div>' +
+          '<div class="seg" id="s-' + r.k + '">' +
+          r.opts.map(([v, l]) => '<button type="button" data-v="' + v + '">' + l + '</button>').join('') +
+          '</div>';
+        row.querySelectorAll('button').forEach(b => {
+          b.addEventListener('click', () => {
+            S[r.k] = b.dataset.v;
+            applyState();
+          });
+        });
+      }
+      sec.appendChild(row);
+    });
+    grid.appendChild(sec);
+  });
+}
+
+// ---------- Presets, user presets, import/export ----------
+const LS_KEY = 'bubblegum-user-presets';
+let userPresets = [];
+try { userPresets = JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch (e) { userPresets = []; }
+if (!Array.isArray(userPresets)) userPresets = [];
+
+function saveUser() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(userPresets)); } catch (e) {}
+}
+
+// Sound-only parameters: arpeggiator, velocity, master volume are not part of a preset
+const NON_SOUND = ['arp', 'arpP', 'arpD', 'arpBpm', 'arpOct', 'arpGate', 'vs', 'vol'];
+function soundParams() {
+  const o = {};
+  Object.keys(DEFAULTS).forEach(k => { if (!NON_SOUND.includes(k)) o[k] = S[k]; });
+  return o;
+}
+
+function loadPreset(p) {
+  const keep = { arp: S.arp, arpP: S.arpP, arpD: S.arpD, arpBpm: S.arpBpm, arpOct: S.arpOct, arpGate: S.arpGate, vs: S.vs, vol: S.vol };
+  Object.assign(S, DEFAULTS, p, keep);
+  applyState();
+}
+
+let curCat = 'Pad';
+let deleteMode = false;
+
+function renderCats() {
+  const box = document.getElementById('cats');
+  box.innerHTML = '';
+  CATS.forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pill ' + (c === curCat ? '' : 'ghost');
+    b.textContent = c;
+    b.addEventListener('click', () => { curCat = c; renderCats(); renderPresets(); });
+    box.appendChild(b);
+  });
+}
+
+function renderPresets() {
+  const box = document.getElementById('plist');
+  box.innerHTML = '';
+  const list = curCat === 'Saját'
+    ? userPresets.map((u, i) => ({ name: u.name, p: u.p, user: i }))
+    : PRESETS.filter(p => p.cat === curCat);
+  list.forEach(pr => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pill ghost';
+    b.textContent = pr.name;
+    b.addEventListener('click', () => {
+      if (pr.user !== undefined && deleteMode) {
+        userPresets.splice(pr.user, 1);
+        saveUser();
+        renderPresets();
+        setStatus('Preset törölve.');
+        return;
+      }
+      loadPreset(pr.p);
+    });
+    box.appendChild(b);
+  });
+  if (!list.length) {
+    const p = document.createElement('span');
+    p.className = 'status';
+    p.textContent = 'Még nincs mentett saját preset.';
+    box.appendChild(p);
+  }
+}
+
+function setStatus(msg) {
+  document.getElementById('status').textContent = msg;
+}
+
+// Random sound: a starting point for new sounds. Arp, velocity and volume are left alone.
+function randomize() {
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  const r = (a, b) => a + Math.random() * (b - a);
+  const wv = ['sine', 'triangle', 'sawtooth', 'square', 'pulse'];
+  Object.assign(S, {
+    o1w: pick(wv), o1o: pick([-1, 0, 0, 1]), o1d: Math.round(r(-15, 15)), o1l: Math.round(r(40, 90)),
+    o1u: pick([1, 1, 3, 5]), o1sp: Math.round(r(0, 25)), o1pw: Math.round(r(20, 80)),
+    o2w: pick(wv), o2o: pick([-1, 0, 1, 2]), o2d: Math.round(r(-15, 15)), o2l: Math.round(r(0, 60)),
+    o2u: pick([1, 1, 3]), o2sp: Math.round(r(0, 25)), o2pw: Math.round(r(20, 80)),
+    ft: pick(['lowpass', 'lowpass', 'bandpass', 'highpass']),
+    fc: Math.round(Math.exp(r(Math.log(150), Math.log(9000)))),
+    fq: Math.round(r(0.5, 12) * 10) / 10,
+    fe: Math.round(r(0, 6000) / 10) * 10,
+    aa: +r(0.001, 0.6).toFixed(3), ad: +r(0.05, 1.5).toFixed(2), as: +r(0, 1).toFixed(2), ar: +r(0.05, 2).toFixed(2),
+    fa: +r(0.001, 0.5).toFixed(3), fd: +r(0.05, 1.5).toFixed(2), fs: +r(0, 0.8).toFixed(2), fr: +r(0.05, 1.5).toFixed(2),
+    lw: pick(['sine', 'triangle', 'sawtooth', 'square']), lr: +r(0.2, 10).toFixed(1), ld: Math.round(r(0, 60)), lt: pick(['pitch', 'filter', 'amp']),
+    drv: Math.round(r(0, 50)), cho: Math.round(r(0, 60)), dlm: Math.round(r(0, 50)), dlt: +r(0.1, 0.6).toFixed(2),
+    dlf: Math.round(r(10, 60)), rv: Math.round(r(0, 60))
+  });
+  applyState();
+  setStatus('Új véletlen hangszín. Ha tetszik, mentsd el.');
+}
+
+function buildToolbar() {
+  renderCats();
+  renderPresets();
+
+  document.getElementById('btnReset').addEventListener('click', () => {
+    Object.assign(S, DEFAULTS);
+    applyState();
+    setStatus('Alaphelyzet.');
+  });
+  document.getElementById('btnRand').addEventListener('click', randomize);
+
+  const btnDel = document.getElementById('btnDel');
+  btnDel.addEventListener('click', () => {
+    deleteMode = !deleteMode;
+    btnDel.textContent = 'Törlés mód: ' + (deleteMode ? 'be' : 'ki');
+    btnDel.classList.toggle('on', deleteMode);
+    setStatus(deleteMode ? 'Törlés mód: kattints egy saját presetre a törléshez.' : '');
+  });
+
+  document.getElementById('btnSave').addEventListener('click', () => {
+    const input = document.getElementById('pname');
+    const name = input.value.trim() || ('Saját ' + (userPresets.length + 1));
+    userPresets.push({ name, p: soundParams() });
+    saveUser();
+    input.value = '';
+    curCat = 'Saját';
+    renderCats();
+    renderPresets();
+    setStatus('Mentve: ' + name);
+  });
+
+  const pio = document.getElementById('pio');
+  const piotxt = document.getElementById('piotxt');
+  document.getElementById('btnExp').addEventListener('click', () => {
+    pio.hidden = false;
+    piotxt.value = JSON.stringify(userPresets);
+    piotxt.select();
+  });
+  document.getElementById('btnCopy').addEventListener('click', () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(piotxt.value)
+        .then(() => setStatus('Vágólapra másolva.'))
+        .catch(() => { piotxt.select(); setStatus('Jelöld ki a szöveget, és másold ki.'); });
+    } else {
+      piotxt.select();
+      setStatus('Jelöld ki a szöveget, és másold ki.');
+    }
+  });
+  document.getElementById('btnImp').addEventListener('click', () => {
+    try {
+      const x = JSON.parse(piotxt.value);
+      const arr = Array.isArray(x) ? x : [x];
+      let added = 0;
+      arr.forEach(u => {
+        if (u && typeof u === 'object' && u.p && typeof u.p === 'object') {
+          userPresets.push({ name: String(u.name || 'Importált'), p: u.p });
+          added++;
+        }
+      });
+      saveUser();
+      curCat = 'Saját';
+      renderCats();
+      renderPresets();
+      setStatus(added + ' preset importálva.');
+    } catch (e) {
+      setStatus('Hibás szöveg: nem lehet beolvasni.');
+    }
+  });
+}
+
+// ---------- Tabs ----------
+const tabSynth = document.getElementById('tabSynth');
+const tabGloss = document.getElementById('tabGloss');
+function showTab(which) {
+  const synth = which === 'synth';
+  document.getElementById('viewSynth').hidden = !synth;
+  document.getElementById('viewGloss').hidden = synth;
+  tabSynth.classList.toggle('on', synth);
+  tabSynth.classList.toggle('ghost', !synth);
+  tabGloss.classList.toggle('on', !synth);
+  tabGloss.classList.toggle('ghost', synth);
+  window.scrollTo(0, 0);
+}
+tabSynth.addEventListener('click', () => showTab('synth'));
+tabGloss.addEventListener('click', () => showTab('gloss'));
+
+// ---------- Keyboard (visual + computer keys) ----------
+const kb = document.getElementById('kb');
+const WHITE_OFFS = [0, 2, 4, 5, 7, 9, 11, 12];
+const BLACK_OFFS = [[1, 0], [3, 1], [6, 3], [8, 4], [10, 5]];
+const keyLetter = off => {
+  const e = Object.entries(KEYMAP).find(([, v]) => v === off);
+  return e ? e[0].toUpperCase() : '';
+};
+
+function buildKB() {
+  kb.innerHTML = '';
+  const base = baseNote();
+  WHITE_OFFS.forEach((o, i) => {
+    const el = document.createElement('div');
+    el.className = 'k w';
+    el.style.left = (i * 12.5) + '%';
+    el.dataset.n = base + o;
+    el.textContent = keyLetter(o);
+    kb.appendChild(el);
+  });
+  BLACK_OFFS.forEach(([o, pos]) => {
+    const el = document.createElement('div');
+    el.className = 'k b';
+    el.style.left = ((pos + 1) * 12.5 - 4) + '%';
+    el.dataset.n = base + o;
+    el.textContent = keyLetter(o);
+    kb.appendChild(el);
+  });
+  const name = NOTE_NAMES[base % 12] + (Math.floor(base / 12) - 1);
+  document.getElementById('octLbl').textContent = name;
+}
+
+function flashKey(n, on) {
+  kb.querySelectorAll('[data-n="' + n + '"]').forEach(el => el.classList.toggle('on', on));
+}
+
+function changeOct(d) {
+  voices.forEach((_, n) => releaseVoice(n, true));
+  octShift = clamp(octShift + d, -2, 2);
+  buildKB();
+}
+
+// Computer keyboard
+const heldKeys = new Map();
+window.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === ' ') {
+    e.preventDefault();
+    if (!e.repeat) setSustain(true);
+    return;
+  }
+  if (e.repeat) return;
+  const k = e.key.toLowerCase();
+  if (k === ',') { changeOct(-1); return; }
+  if (k === '.') { changeOct(1); return; }
+  if (k in KEYMAP && !heldKeys.has(k)) {
+    const n = baseNote() + KEYMAP[k];
+    heldKeys.set(k, n);
+    pressNote(n);
+    flashKey(n, true);
+  }
+});
+window.addEventListener('keyup', e => {
+  if (e.key === ' ') { setSustain(false); return; }
+  const k = e.key.toLowerCase();
+  if (heldKeys.has(k)) {
+    const n = heldKeys.get(k);
+    heldKeys.delete(k);
+    releaseNote(n);
+    flashKey(n, false);
+  }
+});
+window.addEventListener('blur', () => {
+  heldKeys.clear();
+  held.clear();
+  arpStop();
+  sustained.clear();
+  sustainOn = false;
+  document.getElementById('sus').classList.remove('on');
+  voices.forEach((_, n) => releaseVoice(n, true));
+  kb.querySelectorAll('.on').forEach(el => el.classList.remove('on'));
+});
+
+// Mouse and touch on the on-screen keys, with glissando
+let pointerNote = null;
+function pressPointer(n) {
+  if (pointerNote !== null) { releaseNote(pointerNote); flashKey(pointerNote, false); }
+  pointerNote = n;
+  pressNote(n, 0.9);
+  flashKey(n, true);
+}
+kb.addEventListener('pointerdown', e => {
+  const el = e.target.closest('.k');
+  if (!el) return;
+  e.preventDefault();
+  kb.setPointerCapture(e.pointerId);
+  pressPointer(+el.dataset.n);
+});
+kb.addEventListener('pointermove', e => {
+  if (pointerNote === null) return;
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const key = el && el.closest ? el.closest('.k') : null;
+  if (key && +key.dataset.n !== pointerNote) pressPointer(+key.dataset.n);
+});
+const releasePointer = () => {
+  if (pointerNote !== null) {
+    releaseNote(pointerNote);
+    flashKey(pointerNote, false);
+    pointerNote = null;
+  }
+};
+window.addEventListener('pointerup', releasePointer);
+window.addEventListener('pointercancel', releasePointer);
+
+// Octave buttons
+document.getElementById('octDn').addEventListener('click', () => changeOct(-1));
+document.getElementById('octUp').addEventListener('click', () => changeOct(1));
+
+// ---------- MIDI ----------
+function onMidi(e) {
+  const [st, d1, d2] = e.data;
+  const cmd = st & 0xf0;
+  if (cmd === 0x90 && d2 > 0) {
+    followDeviceOctave(d1);
+    pressNote(d1, d2 / 127);
+    flashKey(d1, true);
+  } else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) {
+    releaseNote(d1);
+    flashKey(d1, false);
+  } else if (cmd === 0xB0) {
+    if (learnIdx !== null) {
+      const i = learnIdx;
+      MACROS[i].cc = d1;
+      learnIdx = null;
+      refreshLearnUI();
+      setStatus('Gomb ' + (i + 1) + ' hozzárendelve: CC ' + d1);
+      return;
+    }
+    if (d1 === 1) {
+      S.ld = d2 / 127 * 100;
+      syncUI();
+      onChange();
+      return;
+    }
+    const m = MACROS.find(x => x.cc === d1);
+    if (m) applyNorm(m.k, d2 / 127);
+  } else if (cmd === 0xE0) {
+    setBend(((d2 << 7 | d1) - 8192) / 8192 * 200);
+  }
+}
+
+document.getElementById('midiBtn').addEventListener('click', async () => {
+  ensureCtx();
+  if (!navigator.requestMIDIAccess) {
+    setStatus('Ebben a böngészőben nincs MIDI-támogatás.');
+    return;
+  }
+  try {
+    const acc = await navigator.requestMIDIAccess();
+    const bind = () => {
+      acc.inputs.forEach(inp => { inp.onmidimessage = onMidi; });
+      const n = acc.inputs.size;
+      setStatus(n ? 'MIDI: ' + n + ' eszköz csatlakoztatva' : 'Nincs MIDI-eszköz csatlakoztatva.');
+    };
+    bind();
+    acc.onstatechange = bind;
+  } catch (err) {
+    setStatus('A MIDI-hozzáférés nem engedélyezett.');
+  }
+});
+
+// ---------- Scope ----------
+const cv = document.getElementById('scope');
+const cc = cv.getContext('2d');
+const scopeBuf = new Float32Array(analyser.fftSize);
+function fitScope() {
+  const r = cv.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = r.width * dpr;
+  cv.height = r.height * dpr;
+}
+function drawScope() {
+  requestAnimationFrame(drawScope);
+  analyser.getFloatTimeDomainData(scopeBuf);
+  const w = cv.width, h = cv.height;
+  cc.clearRect(0, 0, w, h);
+  const cs = getComputedStyle(document.documentElement);
+  const grad = cc.createLinearGradient(0, 0, w, 0);
+  grad.addColorStop(0, cs.getPropertyValue('--accent').trim() || '#ff5fa2');
+  grad.addColorStop(1, cs.getPropertyValue('--accent2').trim() || '#a77bff');
+  cc.strokeStyle = grad;
+  cc.lineWidth = 2.5 * (window.devicePixelRatio || 1);
+  cc.lineJoin = 'round';
+  cc.beginPath();
+  for (let i = 0; i < scopeBuf.length; i++) {
+    const x = i / (scopeBuf.length - 1) * w;
+    const y = h / 2 - scopeBuf[i] * h / 2 * 0.9;
+    if (i === 0) cc.moveTo(x, y); else cc.lineTo(x, y);
+  }
+  cc.stroke();
+}
+window.addEventListener('resize', fitScope);
+
+// ---------- Init ----------
+buildPanels();
+buildMacros();
+buildToolbar();
+buildKB();
+syncUI();
+onChange();
+fitScope();
+drawScope();
+setStatus('Nyomj egy billentyűt (A S D F J K L É), vagy kattints a képernyőn lévőre a játékhoz.');
+</script>
+
+</body></html>
