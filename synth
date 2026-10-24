@@ -1,1 +1,298 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Böngészős szintetizátor</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: #f3f4f6;
+      background: #111827;
+      font: 16px system-ui, sans-serif;
+    }
+    main {
+      width: min(760px, 100%);
+      padding: 28px;
+      border: 1px solid #374151;
+      border-radius: 18px;
+      background: #1f2937;
+      box-shadow: 0 20px 60px #0005;
+    }
+    h1 { margin: 0 0 8px; font-size: 1.6rem; }
+    p { color: #cbd5e1; }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      margin: 24px 0;
+    }
+    label { display: grid; gap: 8px; color: #d1d5db; }
+    select, input { width: 100%; }
+    select {
+      padding: 9px;
+      color: white;
+      background: #374151;
+      border: 1px solid #4b5563;
+      border-radius: 8px;
+    }
+    .value { color: #93c5fd; font-variant-numeric: tabular-nums; }
+    .keyboard {
+      position: relative;
+      display: flex;
+      width: 100%;
+      height: 220px;
+      margin-top: 28px;
+      user-select: none;
+      touch-action: none;
+    }
+    .key {
+      position: relative;
+      border: 1px solid #111827;
+      border-radius: 0 0 7px 7px;
+      cursor: pointer;
+      touch-action: none;
+    }
+    .white {
+      z-index: 1;
+      flex: 1;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 12px;
+      color: #334155;
+      background: #f8fafc;
+    }
+    .white.active { background: #93c5fd; }
+    .black {
+      position: absolute;
+      z-index: 2;
+      top: 0;
+      width: 7%;
+      height: 62%;
+      color: white;
+      background: #111827;
+      box-shadow: 0 4px 5px #0007;
+    }
+    .black.active { background: #2563eb; }
+    .hint { margin-bottom: 0; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Jazzmind online synth</h1>
+    <p>Játssz a képernyőn lévő billentyűk vagy a számítógép billentyűzetének a segítségével.</p>
+
+    <div class="controls">
+      <label>
+        Hullámforma
+        <select id="waveform">
+          <option value="sawtooth">Fűrészfog</option>
+          <option value="sine">Szinusz</option>
+          <option value="triangle">Háromszög</option>
+          <option value="square">Négyszög</option>
+        </select>
+      </label>
+
+      <label>
+        Oktávváltás <span class="value" id="octaveValue">0</span>
+        <input id="octave" type="range" min="-2" max="2" step="1" value="0">
+      </label>
+
+      <label>
+        Hangerő <span class="value" id="volumeValue">35%</span>
+        <input id="volume" type="range" min="0" max="1" step="0.01" value="0.35">
+      </label>
+
+      <label>
+        Szűrő <span class="value" id="filterValue">8000 Hz</span>
+        <input id="filter" type="range" min="200" max="10000" step="100" value="8000">
+      </label>
+
+      <label>
+        Hangindítás (attack) <span class="value" id="attackValue">20 ms</span>
+        <input id="attack" type="range" min="0.005" max="0.5" step="0.005" value="0.02">
+      </label>
+
+      <label>
+        Hanglecsengés (release) <span class="value" id="releaseValue">150 ms</span>
+        <input id="release" type="range" min="0.05" max="1" step="0.01" value="0.15">
+      </label>
+    </div>
+
+    <div class="keyboard" id="keyboard" aria-label="Zongorabillentyűk"></div>
+    <p class="hint">Billentyűzet: A W S E D F T G Y H U J K</p>
+  </main>
+
+  <script>
+    let audioContext;
+    let masterGain;
+    let filterNode;
+    const voices = new Map();
+    const heldKeys = new Set();
+
+    const whiteNotes = [
+      { midi: 60, label: "C4", key: "A" },
+      { midi: 62, label: "D4", key: "S" },
+      { midi: 64, label: "E4", key: "D" },
+      { midi: 65, label: "F4", key: "F" },
+      { midi: 67, label: "G4", key: "G" },
+      { midi: 69, label: "A4", key: "H" },
+      { midi: 71, label: "B4", key: "J" },
+      { midi: 72, label: "C5", key: "K" }
+    ];
+    const blackNotes = [
+      { midi: 61, label: "C♯4", key: "W", after: 0 },
+      { midi: 63, label: "D♯4", key: "E", after: 1 },
+      { midi: 66, label: "F♯4", key: "T", after: 3 },
+      { midi: 68, label: "G♯4", key: "Y", after: 4 },
+      { midi: 70, label: "A♯4", key: "U", after: 5 }
+    ];
+    const keyboardMap = {
+      KeyA: 60, KeyW: 61, KeyS: 62, KeyE: 63, KeyD: 64,
+      KeyF: 65, KeyT: 66, KeyG: 67, KeyY: 68, KeyH: 69,
+      KeyU: 70, KeyJ: 71, KeyK: 72
+    };
+
+    function initAudio() {
+      if (audioContext) {
+        if (audioContext.state === "suspended") audioContext.resume();
+        return;
+      }
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioContext.createGain();
+      filterNode = audioContext.createBiquadFilter();
+      filterNode.type = "lowpass";
+      filterNode.frequency.value = Number(document.querySelector("#filter").value);
+      masterGain.gain.value = Number(document.querySelector("#volume").value);
+      filterNode.connect(masterGain);
+      masterGain.connect(audioContext.destination);
+    }
+
+    function shiftedMidi(baseMidi) {
+      return baseMidi + Number(document.querySelector("#octave").value) * 12;
+    }
+
+    function startNote(baseMidi, keyElement) {
+      initAudio();
+      const midi = shiftedMidi(baseMidi);
+      if (voices.has(midi)) return;
+
+      const oscillator = audioContext.createOscillator();
+      const envelope = audioContext.createGain();
+      const now = audioContext.currentTime;
+      const attack = Number(document.querySelector("#attack").value);
+
+      oscillator.type = document.querySelector("#waveform").value;
+      oscillator.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
+      envelope.gain.setValueAtTime(0.0001, now);
+      envelope.gain.exponentialRampToValueAtTime(0.25, now + attack);
+
+      oscillator.connect(envelope);
+      envelope.connect(filterNode);
+      oscillator.start();
+
+      voices.set(midi, { oscillator, envelope, keyElement });
+      if (keyElement) keyElement.classList.add("active");
+    }
+
+    function stopNote(baseMidi) {
+      if (!audioContext) return;
+      const midi = shiftedMidi(baseMidi);
+      const voice = voices.get(midi);
+      if (!voice) return;
+
+      const now = audioContext.currentTime;
+      const release = Number(document.querySelector("#release").value);
+      voice.envelope.gain.cancelScheduledValues(now);
+      voice.envelope.gain.setTargetAtTime(0.0001, now, release / 5);
+      voice.oscillator.stop(now + release + 0.05);
+
+      voices.delete(midi);
+      if (voice.keyElement) voice.keyElement.classList.remove("active");
+    }
+
+    function makeKey(note, color) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `key ${color}`;
+      button.textContent = `${note.label} · ${note.key}`;
+      button.dataset.midi = note.midi;
+      button.setAttribute("aria-label", `${note.label}, ${note.key}`);
+
+      if (color === "black") {
+        button.style.left = `calc(${(note.after + 1) * 12.5}% - 3.5%)`;
+      }
+
+      button.addEventListener("pointerdown", event => {
+        event.preventDefault();
+        startNote(note.midi, button);
+      });
+      button.addEventListener("pointerup", () => stopNote(note.midi));
+      button.addEventListener("pointercancel", () => stopNote(note.midi));
+      document.querySelector("#keyboard").appendChild(button);
+    }
+
+    whiteNotes.forEach(note => makeKey(note, "white"));
+    blackNotes.forEach(note => makeKey(note, "black"));
+
+    document.addEventListener("keydown", event => {
+      const baseMidi = keyboardMap[event.code];
+      if (baseMidi === undefined || event.repeat) return;
+      event.preventDefault();
+      heldKeys.add(event.code);
+      startNote(baseMidi, document.querySelector(`[data-midi="${baseMidi}"]`));
+    });
+
+    document.addEventListener("keyup", event => {
+      const baseMidi = keyboardMap[event.code];
+      if (baseMidi === undefined) return;
+      heldKeys.delete(event.code);
+      stopNote(baseMidi);
+    });
+
+    window.addEventListener("blur", () => {
+      for (const code of heldKeys) {
+        const midi = keyboardMap[code];
+        if (midi !== undefined) stopNote(midi);
+      }
+      heldKeys.clear();
+    });
+
+    document.querySelector("#waveform").addEventListener("change", event => {
+      for (const voice of voices.values()) voice.oscillator.type = event.target.value;
+    });
+
+    document.querySelector("#volume").addEventListener("input", event => {
+      document.querySelector("#volumeValue").textContent =
+        `${Math.round(Number(event.target.value) * 100)}%`;
+      if (masterGain) masterGain.gain.setTargetAtTime(Number(event.target.value), audioContext.currentTime, 0.02);
+    });
+
+    document.querySelector("#filter").addEventListener("input", event => {
+      document.querySelector("#filterValue").textContent = `${event.target.value} Hz`;
+      if (filterNode) filterNode.frequency.setTargetAtTime(Number(event.target.value), audioContext.currentTime, 0.02);
+    });
+
+    document.querySelector("#octave").addEventListener("input", event => {
+      document.querySelector("#octaveValue").textContent = event.target.value;
+    });
+
+    document.querySelector("#attack").addEventListener("input", event => {
+      document.querySelector("#attackValue").textContent =
+        `${Math.round(Number(event.target.value) * 1000)} ms`;
+    });
+
+    document.querySelector("#release").addEventListener("input", event => {
+      document.querySelector("#releaseValue").textContent =
+        `${Math.round(Number(event.target.value) * 1000)} ms`;
+    });
+  </script>
+</body>
+</html>
 
