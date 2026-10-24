@@ -116,6 +116,7 @@ h1 {
 }
 .pill.on { background: var(--accent); color: #fff; border-color: transparent; }
 .pill.learning { background: var(--accent2); color: #fff; border-color: transparent; }
+.pill.ghost.preset-on { background: var(--accent2); color: #fff; border-color: transparent; font-weight: 800; }
 
 .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
 
@@ -148,7 +149,8 @@ h1 {
 }
 
 .scopewrap { margin-bottom: 10px; }
-canvas#scope {
+canvas#hist { margin-top: 6px; height: 40px; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+canvas#scope, canvas#hist {
   width: 100%;
   height: 56px;
   display: block;
@@ -178,7 +180,9 @@ canvas#scope {
 }
 .hint { color: var(--muted); font-size: 12px; margin: 0 0 8px; }
 
-.row { display: grid; gap: 3px; margin-bottom: 6px; cursor: help; }
+.row { display: grid; gap: 3px; margin-bottom: 6px; cursor: help; border-left: 4px solid transparent; padding-left: 8px; border-radius: 8px; transition: border-color .15s ease, background .15s ease; }
+.row.fx-on { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.row.fx-on .lbl span { color: var(--accent); font-weight: 800; }
 .lbl { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; }
 .lbl output { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 
@@ -343,6 +347,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     <p class="status" id="status" aria-live="polite"></p>
     <div class="scopewrap">
       <canvas id="scope" aria-label="Hullámforma"></canvas>
+      <canvas id="hist" aria-label="Szintelőzmény"></canvas>
     </div>
     <main class="grid" id="grid"></main>
 
@@ -483,11 +488,11 @@ const PRESETS = [
 
   // ---- Bass ----
   { cat: 'Bass', name: 'Sub bass', p: { o1w: 'sine', o1o: -1, o2w: 'triangle', o2o: -1, o2d: 0, o2l: 30, fc: 300, fq: 1, fe: 600, aa: 0.005, ad: 0.3, as: 0.8, ar: 0.15, fa: 0.01, fd: 0.2, fs: 0.3, fr: 0.15, lt: 'pitch', ld: 0 } },
-  { cat: 'Bass', name: 'Wobble bass', p: { o1w: 'sawtooth', o1o: -1, o2w: 'sawtooth', o2o: -1, o2d: 6, fc: 500, fq: 8, fe: 1500, aa: 0.005, ad: 0.4, as: 0.6, ar: 0.2, fa: 0.005, fd: 0.3, fs: 0.4, fr: 0.2, lw: 'triangle', lr: 3, ld: 70, lt: 'filter' } },
+  { cat: 'Bass', name: 'Wobble bass', p: { o1w: 'sawtooth', o1o: -1, o2w: 'sawtooth', o2o: -1, o2d: 6, fc: 500, fq: 3, fe: 800, aa: 0.01, ad: 0.4, as: 0.6, ar: 0.2, fa: 0.01, fd: 0.3, fs: 0.4, fr: 0.2, lw: 'triangle', lr: 3, ld: 45, lt: 'filter' } },
   { cat: 'Bass', name: 'Acid bass', p: { o1w: 'sawtooth', o1o: -1, o2l: 0, fc: 400, fq: 14, fe: 3500, aa: 0.002, ad: 0.25, as: 0.1, ar: 0.15, fa: 0.001, fd: 0.2, fs: 0, fr: 0.1, lt: 'filter', ld: 0, drv: 30 } },
   { cat: 'Bass', name: 'Reese bass', p: { o1w: 'sawtooth', o1o: -1, o1d: -12, o2w: 'sawtooth', o2o: -1, o2d: 12, fc: 450, fq: 2, fe: 500, aa: 0.01, ad: 0.5, as: 0.9, ar: 0.3, fa: 0.01, fd: 0.4, fs: 0.5, fr: 0.3, lw: 'sine', lr: 0.5, ld: 15, lt: 'filter', drv: 25 } },
   { cat: 'Bass', name: 'Pluck bass', p: { o1w: 'square', o1o: -1, o2w: 'sawtooth', o2o: -1, o2l: 25, fc: 900, fq: 4, fe: 1500, aa: 0.002, ad: 0.3, as: 0, ar: 0.12, fa: 0.001, fd: 0.2, fs: 0, fr: 0.1, lt: 'pitch', ld: 0 } },
-  { cat: 'Bass', name: '808 bass', p: { o1w: 'sine', o1o: -2, o2l: 0, fc: 1000, fq: 0.5, fe: 0, aa: 0.001, ad: 1.2, as: 0, ar: 0.4, fa: 0.001, fd: 0.1, fs: 0, fr: 0.1, lt: 'pitch', ld: 0, drv: 20 } },
+  { cat: 'Bass', name: '808 bass', p: { o1w: 'sine', o1o: -2, o1l: 100, o2l: 0, fc: 1000, fq: 0.5, fe: 0, aa: 0.001, ad: 1.2, as: 0, ar: 0.4, fa: 0.001, fd: 0.1, fs: 0, fr: 0.1, lt: 'pitch', ld: 0, drv: 50 } },
   { cat: 'Bass', name: 'Rubber bass', p: { o1w: 'triangle', o1o: -1, o2w: 'square', o2o: -1, o2d: 0, o2l: 35, fc: 700, fq: 5, fe: 2000, aa: 0.003, ad: 0.35, as: 0.4, ar: 0.2, fa: 0.002, fd: 0.25, fs: 0.1, fr: 0.2, lt: 'filter', ld: 15, lr: 2 } },
 
   // ---- Lead ----
@@ -525,13 +530,17 @@ const PRESETS = [
   { cat: 'FX', name: 'Chiptune', p: { o1w: 'square', o2w: 'square', o2d: 0, o2l: 0, fc: 12000, fq: 0.1, fe: 0, aa: 0.001, ad: 0.05, as: 1, ar: 0.02, lt: 'pitch', ld: 0 } },
   { cat: 'FX', name: 'Hi-hat', p: { o1w: 'noise', o1l: 80, o2l: 0, fc: 8000, fq: 0.5, fe: 0, aa: 0.001, ad: 0.05, as: 0, ar: 0.03, lt: 'pitch', ld: 0 } },
   { cat: 'FX', name: 'Snare', p: { o1w: 'noise', o1l: 60, o2w: 'triangle', o2o: -1, o2l: 50, ft: 'bandpass', fc: 2000, fq: 1, fe: 0, aa: 0.001, ad: 0.18, as: 0, ar: 0.1, lt: 'pitch', ld: 0, drv: 15 } },
-  { cat: 'FX', name: 'Kick', p: { o1w: 'sine', o1o: -2, o2l: 0, fc: 2000, fq: 0.5, fe: 2000, aa: 0.001, ad: 0.35, as: 0, ar: 0.1, fa: 0.001, fd: 0.06, fs: 0, fr: 0.05, lt: 'pitch', ld: 0 } },
+  { cat: 'FX', name: 'Kick', p: { o1w: 'sine', o1o: -2, o1l: 100, o2l: 0, fc: 2000, fq: 0.5, fe: 2000, aa: 0.001, ad: 0.35, as: 0, ar: 0.1, fa: 0.001, fd: 0.06, fs: 0, fr: 0.05, lt: 'pitch', ld: 0, drv: 50 } },
   { cat: 'FX', name: 'Wind', p: { o1w: 'noise', o1l: 70, o2l: 0, ft: 'bandpass', fc: 700, fq: 3, fe: 800, aa: 1.2, ad: 1, as: 0.7, ar: 1.5, fa: 1, fd: 2, fs: 0.8, fr: 1.5, lt: 'amp', lr: 0.2, ld: 40, rv: 40 } },
   { cat: 'FX', name: 'Laser zap', p: { o1w: 'square', o2l: 0, fc: 300, fq: 6, fe: 7000, aa: 0.001, ad: 0.5, as: 0, ar: 0.1, fa: 0.001, fd: 0.35, fs: 0, fr: 0.1, lt: 'pitch', ld: 0, drv: 25 } },
   { cat: 'FX', name: 'Rise', p: { o1w: 'noise', o1l: 60, o2l: 0, ft: 'highpass', fc: 400, fq: 2, fe: 6000, aa: 2, ad: 1, as: 1, ar: 0.5, fa: 2, fd: 1, fs: 1, fr: 0.5, lt: 'amp', lr: 1, ld: 20, rv: 30 } },
   { cat: 'FX', name: 'Retro sweep', p: { o1w: 'sawtooth', o2w: 'square', o2l: 30, fc: 300, fq: 6, fe: 6000, aa: 0.01, ad: 0.5, as: 0.5, ar: 0.5, fa: 0.3, fd: 1, fs: 0.2, fr: 0.5, lw: 'triangle', lr: 8, ld: 80, lt: 'filter', dlm: 25 } },
   { cat: 'FX', name: 'Vinyl crackle', p: { o1w: 'noise', o1l: 15, o2l: 0, ft: 'highpass', fc: 2500, fq: 0.5, fe: 0, aa: 0.8, ad: 1, as: 1, ar: 0.5, lt: 'amp', lr: 6, ld: 40, rv: 20 } },
   { cat: 'FX', name: 'Sci-fi wobble', p: { o1w: 'pulse', o1pw: 30, o2w: 'noise', o2l: 12, fc: 900, fq: 9, fe: 2000, aa: 0.3, ad: 1, as: 0.6, ar: 1, lw: 'sine', lr: 3, ld: 80, lt: 'filter', cho: 40, dlm: 30, dlt: 0.4, dlf: 55, rv: 35 } }
+,
+  { cat: 'FX', name: 'Mély dob', p: { o1w: 'sine', o1o: -1, o1l: 100, o2l: 0, fc: 900, fq: 0.5, fe: 500, aa: 0.001, ad: 0.6, as: 0, ar: 0.2, fa: 0.001, fd: 0.25, fs: 0, fr: 0.1, lt: 'pitch', ld: 0, drv: 35 } },
+  { cat: 'FX', name: 'Kolomp', p: { o1w: 'square', o1o: 0, o1l: 60, o2w: 'square', o2o: 0, o2d: 5, o2l: 60, ft: 'bandpass', fc: 1000, fq: 6, fe: 0, aa: 0.001, ad: 0.12, as: 0, ar: 0.08, lt: 'pitch', ld: 0, drv: 20 } },
+  { cat: 'FX', name: 'Gépdob', p: { o1w: 'square', o1o: -1, o1l: 80, o2w: 'noise', o2l: 40, ft: 'bandpass', fc: 2200, fq: 2, fe: 0, aa: 0.001, ad: 0.18, as: 0, ar: 0.1, lt: 'pitch', ld: 0, drv: 40 } }
 ];
 const CATS = ['Pad', 'Bass', 'Lead', 'Keys', 'Pluck', 'Brass', 'FX', 'Saját'];
 
@@ -674,6 +683,14 @@ const AC = window.AudioContext || window.webkitAudioContext;
 const ctx = new AC();
 const master = ctx.createGain();      // voice bus
 const comp = ctx.createDynamicsCompressor();
+// Gentler limiter: the default threshold (-24 dB) was squashing quiet sounds
+comp.threshold.value = -10;
+comp.knee.value = 6;
+comp.ratio.value = 4;
+comp.attack.value = 0.003;
+comp.release.value = 0.25;
+const makeup = ctx.createGain();
+makeup.gain.value = 1.8;
 const analyser = ctx.createAnalyser();
 analyser.fftSize = 2048;
 
@@ -708,7 +725,8 @@ dlOut.connect(rvDry); rvDry.connect(rvOut);
 dlOut.connect(conv); conv.connect(rvWet); rvWet.connect(rvOut);
 
 rvOut.connect(comp);
-comp.connect(analyser);
+comp.connect(makeup);
+makeup.connect(analyser);
 analyser.connect(ctx.destination);
 
 function makeIR(sec) {
@@ -959,7 +977,20 @@ function liveUpdate() {
   });
 }
 
+// Effect rows light up while their effect is in use (amount above zero)
+const FX_LINKS = { drv: ['drv'], cho: ['cho'], dlm: ['dlm', 'dlt', 'dlf'], rv: ['rv'] };
+function markFx() {
+  Object.keys(FX_LINKS).forEach(src => {
+    const on = S[src] > 0;
+    FX_LINKS[src].forEach(k => {
+      document.querySelectorAll('[data-k="' + k + '"]').forEach(el => el.classList.toggle('fx-on', on));
+    });
+  });
+}
+
 function onChange() {
+  markFx();
+  markPreset();
   const t = ctx.currentTime;
   master.gain.setTargetAtTime(S.vol / 100 * 0.9, t, 0.02);
   updateLFO();
@@ -1197,6 +1228,7 @@ function buildPanels() {
       const row = document.createElement('div');
       row.className = 'row';
       row.title = hintFor(r.k);
+      row.dataset.k = r.k;
       if (r.type === 'sl') {
         row.innerHTML =
           '<div class="lbl"><span>' + r.label + '</span><output id="o-' + r.k + '"></output></div>' +
@@ -1266,6 +1298,20 @@ function renderCats() {
   });
 }
 
+// Highlights the preset whose values match the current sound (the one in use)
+function markPreset() {
+  document.querySelectorAll('#plist button').forEach(b => {
+    if (!b._p) { b.classList.remove('preset-on'); return; }
+    const on = Object.keys(DEFAULTS).every(k => {
+      if (NON_SOUND.includes(k)) return true;
+      const want = k in b._p ? b._p[k] : DEFAULTS[k];
+      const have = S[k];
+      return typeof want === 'number' ? Math.abs(want - have) < 1e-6 : want === have;
+    });
+    b.classList.toggle('preset-on', on);
+  });
+}
+
 function renderPresets() {
   const box = document.getElementById('plist');
   box.innerHTML = '';
@@ -1277,6 +1323,7 @@ function renderPresets() {
     b.type = 'button';
     b.className = 'pill ghost';
     b.textContent = pr.name;
+    b._p = pr.p;
     b.addEventListener('click', () => {
       if (pr.user !== undefined && deleteMode) {
         userPresets.splice(pr.user, 1);
@@ -1289,6 +1336,7 @@ function renderPresets() {
     });
     box.appendChild(b);
   });
+  markPreset();
   if (!list.length) {
     const p = document.createElement('span');
     p.className = 'status';
@@ -1585,32 +1633,70 @@ document.getElementById('midiBtn').addEventListener('click', async () => {
 // ---------- Scope ----------
 const cv = document.getElementById('scope');
 const cc = cv.getContext('2d');
+const hc = document.getElementById('hist');
+const hcc = hc.getContext('2d');
 const scopeBuf = new Float32Array(analyser.fftSize);
 function fitScope() {
-  const r = cv.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
-  cv.width = r.width * dpr;
-  cv.height = r.height * dpr;
+  [cv, hc].forEach(el => {
+    const r = el.getBoundingClientRect();
+    el.width = r.width * dpr;
+    el.height = r.height * dpr;
+  });
 }
+const HIST_N = 240;
+const hist = new Float32Array(HIST_N);
+let histPos = 0;
+const SHOW = 1024;
 function drawScope() {
   requestAnimationFrame(drawScope);
   analyser.getFloatTimeDomainData(scopeBuf);
+  const cs = getComputedStyle(document.documentElement);
+  const accent = cs.getPropertyValue('--accent').trim() || '#ff5fa2';
+  const accent2 = cs.getPropertyValue('--accent2').trim() || '#a77bff';
+  const dpr = window.devicePixelRatio || 1;
+
+  // Triggered waveform: start at a rising zero crossing so the picture holds still
+  let start = 0;
+  const limit = scopeBuf.length - SHOW;
+  for (let i = 1; i < limit; i++) {
+    if (scopeBuf[i - 1] < 0 && scopeBuf[i] >= 0) { start = i; break; }
+  }
   const w = cv.width, h = cv.height;
   cc.clearRect(0, 0, w, h);
-  const cs = getComputedStyle(document.documentElement);
   const grad = cc.createLinearGradient(0, 0, w, 0);
-  grad.addColorStop(0, cs.getPropertyValue('--accent').trim() || '#ff5fa2');
-  grad.addColorStop(1, cs.getPropertyValue('--accent2').trim() || '#a77bff');
+  grad.addColorStop(0, accent);
+  grad.addColorStop(1, accent2);
   cc.strokeStyle = grad;
-  cc.lineWidth = 2.5 * (window.devicePixelRatio || 1);
+  cc.lineWidth = 2.5 * dpr;
   cc.lineJoin = 'round';
   cc.beginPath();
-  for (let i = 0; i < scopeBuf.length; i++) {
-    const x = i / (scopeBuf.length - 1) * w;
-    const y = h / 2 - scopeBuf[i] * h / 2 * 0.9;
+  for (let i = 0; i < SHOW; i++) {
+    const x = i / (SHOW - 1) * w;
+    const y = h / 2 - scopeBuf[start + i] * h / 2 * 0.9;
     if (i === 0) cc.moveTo(x, y); else cc.lineTo(x, y);
   }
   cc.stroke();
+
+  // History: peak level per frame, scrolling from right (newest) to left (oldest)
+  let peak = 0;
+  for (let i = 0; i < scopeBuf.length; i++) {
+    const a = Math.abs(scopeBuf[i]);
+    if (a > peak) peak = a;
+  }
+  hist[histPos] = peak;
+  histPos = (histPos + 1) % HIST_N;
+  const hw = hc.width, hh = hc.height;
+  hcc.clearRect(0, 0, hw, hh);
+  hcc.fillStyle = accent2;
+  const bw = hw / HIST_N;
+  for (let k = 0; k < HIST_N; k++) {
+    const v = hist[(histPos + k) % HIST_N];
+    const bh = Math.max(1, v * hh * 0.9);
+    hcc.globalAlpha = 0.25 + 0.75 * (k / HIST_N);
+    hcc.fillRect(k * bw, (hh - bh) / 2, Math.max(1, bw - 1), bh);
+  }
+  hcc.globalAlpha = 1;
 }
 window.addEventListener('resize', fitScope);
 
