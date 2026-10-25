@@ -330,6 +330,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <button class="pill ghost" id="btnReset" type="button">Reset</button>
       <button class="pill ghost" id="btnRand" type="button">Véletlen hangszín</button>
       <button class="pill ghost" id="btnDel" type="button">Törlés mód: ki</button>
+      <button class="pill ghost" id="btnClearAll" type="button">Saját presetek törlése</button>
     </div>
     <div class="savebar">
       <input id="pname" type="text" placeholder="Saját preset neve" aria-label="Saját preset neve">
@@ -1266,6 +1267,8 @@ if (!Array.isArray(userPresets)) userPresets = [];
 
 function saveUser() {
   try { localStorage.setItem(LS_KEY, JSON.stringify(userPresets)); } catch (e) {}
+  const t = document.getElementById('piotxt');
+  if (t && !document.getElementById('pio').hidden) t.value = JSON.stringify(userPresets);
 }
 
 // Sound-only parameters: arpeggiator, velocity, master volume are not part of a preset
@@ -1390,6 +1393,24 @@ function buildToolbar() {
     btnDel.textContent = 'Törlés mód: ' + (deleteMode ? 'be' : 'ki');
     btnDel.classList.toggle('on', deleteMode);
     setStatus(deleteMode ? 'Törlés mód: kattints egy saját presetre a törléshez.' : '');
+  });
+
+  // Two clicks needed, so a saved preset list is not wiped by accident
+  const btnClear = document.getElementById('btnClearAll');
+  let clearArmed = false;
+  btnClear.addEventListener('click', () => {
+    if (!clearArmed) {
+      clearArmed = true;
+      btnClear.textContent = 'Biztosan törlöd? Kattints újra';
+      setTimeout(() => { clearArmed = false; btnClear.textContent = 'Saját presetek törlése'; }, 4000);
+      return;
+    }
+    clearArmed = false;
+    userPresets = [];
+    saveUser();
+    btnClear.textContent = 'Saját presetek törlése';
+    renderPresets();
+    setStatus('Minden saját preset törölve.');
   });
 
   document.getElementById('btnSave').addEventListener('click', () => {
