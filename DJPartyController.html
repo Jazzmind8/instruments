@@ -7,6 +7,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Quicksand:wght@500;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
 <style>
 :root{
   --bg:#fff5e6; --card:#ffffff; --ink:#3a2a4f; --muted:#8a7a99; --line:#f0dcef;
@@ -135,6 +136,8 @@ input.vfader{writing-mode:vertical-lr; direction:rtl; accent-color:var(--deck-c)
 .lib-item .li-artist{font-size:13px; color:var(--muted); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .lib-item .acts{display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end}
 .lib-empty{color:var(--muted); font-weight:600; padding:6px}
+.export{background:#f1fff9; border:2px solid var(--mint); border-radius:16px; padding:10px; display:grid; gap:8px}
+.export audio{width:100%}
 .queue{background:#fdfbff; border:2px solid var(--line); border-radius:18px; padding:12px; display:grid; gap:8px; align-content:start}
 .queue h3{margin:0; font-family:var(--display); font-size:18px}
 .q-item{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:8px; align-items:center; font-weight:600; font-size:14px}
@@ -218,6 +221,7 @@ input.vfader{writing-mode:vertical-lr; direction:rtl; accent-color:var(--deck-c)
         <div class="lib-list" id="libList"></div>
       </div>
       <div class="queue">
+        <div id="exportPanel"></div>
         <h3>Sor</h3>
         <p class="hint">A „Sorba” gombbal teheted a számokat sorba. A NEXT gomb a következőt tölti be, az AUTO bekapcsolása után a szám végén magától indul a következő.</p>
         <div id="queueList"></div>
@@ -551,7 +555,7 @@ async function loadFile(k, file, preMeta) {
   if (d.url) URL.revokeObjectURL(d.url);
   d.file = file; d.url = URL.createObjectURL(file);
   d.el.src = d.url; d.el.load();
-  d.bpmBase = null; d.peaks = null; d.loopOn = false;
+  d.bpmBase = null; d.peaks = null; d.loopOn = false; d.dataTried = false;
   d.cues = restoreCues(k, file);
   d.meta = preMeta || await readTags(file);
   renderTrack(k);
@@ -680,6 +684,8 @@ function renderLibrary() {
             <button class="sm" data-lib-load="${item.id}.a">A-ra</button>
             <button class="sm alt" data-lib-load="${item.id}.b">B-re</button>
             <button class="sm ghost" data-queue="${item.id}">Sorba</button>
+            <button class="sm ghost" data-export="${item.id}.wav">WAV</button>
+            <button class="sm ghost" data-export="${item.id}.mp3">MP3 192</button>
             <button class="sm ghost" data-remove="${item.id}" aria-label="Törlés">×</button>
           </div>
         </div>`).join('')}
@@ -723,6 +729,85 @@ function toggleRec() {
   rec = r;
   btn.classList.add('rec-on'); btn.textContent = '■ Felvétel leállítása';
   toast('Felvétel fut');
+}
+
+/* ---------- Export: WAV (16-bit PCM) and MP3 at 192 kbps ---------- */
+function toInt16(f) {
+  const o = new Int16Array(f.length);
+  for (let i = 0; i < f.length; i++) {
+    const s = Math.max(-1, Math.min(1, f[i]));
+    o[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+  }
+  return o;
+}
+function encodeWav(buf) {
+  const ch = Math.min(2, buf.numberOfChannels), sr = buf.sampleRate, len = buf.length;
+  const data = new Int16Array(len * ch);
+  const chans = [];
+  for (let c = 0; c < ch; c++) chans.push(buf.getChannelData(c));
+  for (let i = 0; i < len; i++) for (let c = 0; c < ch; c++) {
+    const s = Math.max(-1, Math.min(1, chans[c][i]));
+    data[i * ch + c] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+  }
+  const bytes = data.length * 2;
+  const ab = new ArrayBuffer(44 + bytes);
+  const v = new DataView(ab);
+  const str = (off, s) => { for (let i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i)); };
+  str(0, 'RIFF'); v.setUint32(4, 36 + bytes, true); str(8, 'WAVE');
+  str(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, ch, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * ch * 2, true); v.setUint16(32, ch * 2, true); v.setUint16(34, 16, true);
+  str(36, 'data'); v.setUint32(40, bytes, true);
+  new Int16Array(ab, 44).set(data);
+  return new Blob([ab], { type: 'audio/wav' });
+}
+function encodeMp3(buf, kbps) {
+  if (!window.lamejs) throw new Error('lamejs nem töltött be');
+  const ch = Math.min(2, buf.numberOfChannels);
+  const enc = new lamejs.Mp3Encoder(ch, buf.sampleRate, kbps);
+  const L = toInt16(buf.getChannelData(0));
+  const R = ch > 1 ? toInt16(buf.getChannelData(1)) : null;
+  const out = [], block = 1152;
+  for (let i = 0; i < L.length; i += block) {
+    const part = ch > 1 ? enc.encodeBuffer(L.subarray(i, i + block), R.subarray(i, i + block))
+                        : enc.encodeBuffer(L.subarray(i, i + block));
+    if (part.length) out.push(part);
+  }
+  const end = enc.flush();
+  if (end.length) out.push(end);
+  return new Blob(out, { type: 'audio/mpeg' });
+}
+async function exportItem(id, fmt) {
+  const item = libItem(id);
+  if (!item) return;
+  toast(`Konvertálás: ${fmt.toUpperCase()}…`);
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const tmp = new AC();
+    const buf = await tmp.decodeAudioData(await item.file.arrayBuffer());
+    tmp.close();
+    const blob = fmt === 'wav' ? encodeWav(buf) : encodeMp3(buf, 192);
+    const ext = fmt === 'wav' ? 'wav' : 'mp3';
+    const title = `${item.title} (export)`;
+    const file = new File([blob], `${title}.${ext}`, { type: blob.type });
+    const out = { id: Math.random().toString(36).slice(2) + Date.now().toString(36), file, folder: 'Exportok', title, artist: item.artist, cover: null };
+    library.push(out);
+    try { await DB.put({ id: out.id, file, folder: out.folder }); } catch (e) {}
+    renderLibrary();
+    showExport(out, ext);
+    toast(`Kész: ${ext.toUpperCase()}`);
+  } catch (e) {
+    toast('A konvertálás nem sikerült');
+  }
+}
+function showExport(item, ext) {
+  const url = URL.createObjectURL(item.file);
+  $('#exportPanel').innerHTML = `
+    <div class="export">
+      <b>Export kész (${ext.toUpperCase()}): ${escapeHtml(item.title)}</b>
+      <audio controls src="${url}"></audio>
+      <a class="btn alt2" href="${url}" download="${escapeHtml(item.file.name)}">Letöltés (${ext.toUpperCase()})</a>
+      <p class="hint">A letöltés csak a helyi (nem a Claude-ban futó) változatban működik, lásd a fájl leírását.</p>
+    </div>`;
 }
 
 /* ---------- Waveform ---------- */
@@ -839,7 +924,20 @@ for (const k of K) {
     syncPlayUi(k);
     if (decks[k].auto && queue.length) nextTrack(k);
   });
-  el.addEventListener('error', () => { if (el.getAttribute('src')) toast('Ezt a fájlt nem tudja lejátszani a böngésző'); });
+  el.addEventListener('error', () => {
+    const d = decks[k];
+    if (!d.file) return;
+    // Some viewers block blob: media URLs. Retry once with a data: URL built from the file.
+    if (!d.dataTried) {
+      d.dataTried = true;
+      const fr = new FileReader();
+      fr.onload = () => { el.src = fr.result; el.load(); };
+      fr.onerror = () => toast('Ez a fájl nem tölthető be ebben a nézetben');
+      fr.readAsDataURL(d.file);
+      return;
+    }
+    toast('Ezt a fájlt nem tudja lejátszani a böngésző (Claude-nézet: használd a helyi változatot)');
+  });
   const card = document.querySelector(`.deck[data-deck="${k}"]`);
   card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag'); });
   card.addEventListener('dragleave', () => card.classList.remove('drag'));
@@ -872,6 +970,8 @@ document.addEventListener('click', e => {
     if (item) loadAndPlayOrLoad(k, item);
     return;
   }
+  const ex = e.target.closest('[data-export]');
+  if (ex) { const [id, fmt] = ex.dataset.export.split('.'); exportItem(id, fmt); return; }
   const q = e.target.closest('[data-queue]');
   if (q) { queueAdd(q.dataset.queue); return; }
   const rm = e.target.closest('[data-remove]');
