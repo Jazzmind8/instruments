@@ -1,1 +1,791 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>Party Deck Controller</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Quicksand:wght@500;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+<style>
+/* Cheerful two-deck controller: track info, level meters, library, and bigger keyboard steps. */
+:root{
+  --bg:#fff5e6; --card:#ffffff; --ink:#3a2a4f; --muted:#8a7a99; --line:#f0dcef;
+  --pink:#ff6fb1; --yellow:#ffd23f; --mint:#4fe0bd; --sky:#5ec5ff; --purple:#a98bff; --orange:#ff9a3c;
+  --display:"Fredoka","Trebuchet MS",sans-serif; --body:"Quicksand","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+body{
+  margin:0; min-height:100%; font-family:var(--body); font-size:15px; color:var(--ink);
+  background:
+    radial-gradient(circle at 8% 10%, #ffd6ec 0 9%, transparent 10%),
+    radial-gradient(circle at 92% 6%, #c9efff 0 8%, transparent 9%),
+    radial-gradient(circle at 96% 80%, #d8ffef 0 9%, transparent 10%),
+    radial-gradient(circle at 4% 92%, #fff0a8 0 8%, transparent 9%),
+    var(--bg);
+  padding-block:22px;
+  padding-left:max(14px, env(safe-area-inset-left, 0px));
+  padding-right:max(14px, env(safe-area-inset-right, 0px));
+}
+.party{max-width:1140px; margin:0 auto}
+.party-head{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px}
+h1{font-family:var(--display); margin:0; font-size:clamp(28px,5vw,40px); line-height:1.05; color:var(--pink)}
+.tag{font-family:var(--display); font-weight:600; color:var(--muted); margin:2px 0 0}
+.tools{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+.pill{padding:7px 14px; border-radius:999px; background:#fff; border:2px solid var(--line); font-size:13px; font-weight:700; max-width:100%; overflow-wrap:anywhere}
 
+button, .btn{
+  font:inherit; font-family:var(--display); font-weight:600; border:0; border-radius:999px; padding:10px 16px;
+  background:var(--pink); color:#fff; cursor:pointer; min-height:40px; box-shadow:0 4px 0 rgba(0,0,0,.12);
+  display:inline-flex; align-items:center; justify-content:center; text-align:center;
+}
+button:active{transform:translateY(2px); box-shadow:0 2px 0 rgba(0,0,0,.12)}
+button.ghost{background:#fff; color:var(--ink); border:2px solid var(--line); box-shadow:none}
+button.sm{padding:6px 12px; min-height:32px; font-size:13px}
+button.alt{background:var(--sky)} button.alt2{background:var(--mint); color:#17423a}
+:focus-visible{outline:3px solid var(--purple); outline-offset:2px}
+
+.layout{display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,370px) minmax(0,1fr); gap:14px; align-items:start}
+@media (max-width:920px){ .layout{grid-template-columns:1fr} }
+
+/* Deck */
+.deck{
+  background:#fff; border:3px solid var(--deck-c, var(--pink)); border-radius:26px; padding:14px;
+  display:grid; gap:12px; min-width:0; box-shadow:0 10px 24px rgba(120,60,140,.12);
+}
+.deck[data-deck="a"]{--deck-c:var(--pink)}
+.deck[data-deck="b"]{--deck-c:var(--sky)}
+.deck.drag{outline:3px dashed var(--purple); outline-offset:4px}
+.deck-top{display:flex; gap:6px; align-items:center; flex-wrap:wrap}
+.deck-name{font-family:var(--display); font-size:26px; font-weight:700; color:var(--deck-c); margin-left:auto}
+.load{background:var(--yellow); color:var(--ink); box-shadow:0 4px 0 #d4ac18; cursor:pointer}
+
+.track{display:grid; gap:2px; min-width:0}
+.t-title{font-family:var(--display); font-size:19px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.t-artist{font-size:14px; color:var(--muted); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.t-time{font-variant-numeric:tabular-nums; font-weight:700; color:var(--ink); font-size:13px}
+
+.level{height:12px; background:#f3e8f6; border-radius:999px; overflow:hidden}
+.level i{display:block; height:100%; width:0; border-radius:999px; background:linear-gradient(90deg,var(--mint),var(--yellow) 70%,var(--pink)); transition:width .08s linear}
+
+.deck-main{display:grid; grid-template-columns:minmax(0,1fr) 52px; gap:10px; align-items:center}
+.jog-wrap{display:grid; place-items:center; min-width:0}
+.jog{
+  position:relative; width:min(100%,250px); aspect-ratio:1; border-radius:50%; cursor:grab; touch-action:none; will-change:transform;
+  background:
+    repeating-radial-gradient(circle at 50% 50%, #ffffff 0 3px, #f5e7fb 4px 6px),
+    radial-gradient(circle, #fff 0 40%, #f0e0f7 41%);
+  box-shadow:inset 0 0 0 8px var(--deck-c), 0 10px 22px rgba(120,60,140,.2);
+}
+.jog-center{
+  position:absolute; inset:30%; border-radius:50%; display:grid; place-items:center; text-align:center;
+  background:var(--cover, linear-gradient(135deg,var(--deck-c),var(--purple))) center/cover no-repeat;
+  color:#fff; font-family:var(--display); font-weight:700; font-size:clamp(14px,2.6vw,20px);
+  border:4px solid #fff; overflow:hidden; text-shadow:0 1px 3px rgba(0,0,0,.35);
+}
+.jog-center span{background:rgba(0,0,0,.15); padding:4px 8px; border-radius:999px}
+.tempo{display:grid; justify-items:center; gap:4px; font-family:var(--display); font-size:12px; color:var(--muted); font-weight:600}
+input.vfader{writing-mode:vertical-lr; direction:rtl; accent-color:var(--deck-c); width:28px; height:200px; margin:0; cursor:pointer}
+
+.transport{display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap}
+.round{
+  width:64px; height:64px; flex:none; border-radius:50%; border:0; padding:0; cursor:pointer;
+  font-family:var(--display); font-weight:700; font-size:14px; color:#fff; background:var(--deck-c);
+  box-shadow:0 5px 0 rgba(0,0,0,.14);
+}
+.round.on{background:var(--mint); color:#17423a}
+.round:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.14)}
+.pads{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
+.pad{
+  min-height:44px; border-radius:16px; border:0; background:var(--pc); color:#fff; font-family:var(--display); font-weight:700; font-size:14px;
+  opacity:.45; box-shadow:0 4px 0 rgba(0,0,0,.14); padding:8px 4px;
+}
+.pad.on{opacity:1}
+.pad:active{transform:translateY(2px)}
+.seek{width:100%; accent-color:var(--deck-c)}
+
+/* Mixer */
+.mixer{
+  background:#fff; border:3px solid var(--purple); border-radius:26px; padding:14px; display:grid; gap:12px; min-width:0;
+  box-shadow:0 10px 24px rgba(120,60,140,.12);
+}
+.mix-top{display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:center}
+.lcd{
+  background:#fff7d6; border:2px solid var(--yellow); border-radius:14px; padding:6px 10px; display:grid; justify-items:center;
+  font-family:var(--display); color:var(--ink);
+}
+.lcd span{font-size:12px; font-weight:600; color:var(--muted)}
+.lcd b{font-size:22px; font-weight:700; font-variant-numeric:tabular-nums}
+.channels{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.channel{display:grid; gap:10px; justify-items:center; background:#faf5ff; border:2px solid var(--line); border-radius:18px; padding:10px 6px; min-width:0}
+.channel-name{font-family:var(--display); font-weight:700; color:var(--ink)}
+.knobs{display:grid; grid-template-columns:1fr 1fr; gap:8px; justify-items:center}
+.knob-wrap{display:grid; justify-items:center; gap:3px; font-family:var(--display); font-size:11px; color:var(--muted); font-weight:600}
+.knob{
+  width:48px; height:48px; border-radius:50%; cursor:ns-resize; touch-action:none; display:grid; place-items:center;
+  background:#fff; border:3px solid var(--line); box-shadow:0 3px 0 rgba(0,0,0,.08);
+}
+.knob:focus-visible{outline:3px solid var(--purple); outline-offset:3px}
+.dial{width:36px; height:36px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #fff, #ffd6ec); position:relative; transform:rotate(-135deg)}
+.dial::after{content:""; position:absolute; left:50%; top:3px; width:4px; height:12px; transform:translateX(-50%); background:var(--purple); border-radius:3px}
+.fader-col{display:grid; justify-items:center; gap:4px; font-family:var(--display); font-size:11px; color:var(--muted); font-weight:600}
+.master-wrap{display:grid; justify-items:center}
+.vu{display:flex; flex-direction:column-reverse; gap:3px; width:20px; height:64px; justify-self:center}
+.vu i{display:block; height:6px; border-radius:3px; background:#f0e4f5}
+.vu i.g.on{background:var(--mint)} .vu i.y.on{background:var(--yellow)} .vu i.r.on{background:var(--pink)}
+.xf-row{display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; font-family:var(--display); font-weight:700; color:var(--ink)}
+.xf-row input{accent-color:var(--purple); width:100%}
+.hint{margin:0; color:var(--muted); font-size:13px; line-height:1.5; font-weight:600}
+
+/* Library */
+.library{
+  margin-top:16px; background:#fff; border:3px solid var(--mint); border-radius:26px; padding:14px; display:grid; gap:12px;
+  box-shadow:0 10px 24px rgba(120,60,140,.1);
+}
+.lib-head{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap}
+.lib-head h2{margin:0; font-family:var(--display); font-size:22px; color:var(--ink)}
+.drop-zone{
+  border:3px dashed var(--mint); border-radius:20px; padding:14px; text-align:center; color:var(--muted); font-weight:700;
+  background:#f1fff9;
+}
+.drop-zone.over{background:#d7fff0; border-color:var(--purple)}
+.lib-list{display:grid; gap:8px; max-height:340px; overflow:auto; padding-right:4px}
+.lib-item{
+  display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px; align-items:center;
+  background:#fbf8ff; border:2px solid var(--line); border-radius:16px; padding:8px 10px; min-width:0;
+}
+.lib-item .li-title{font-family:var(--display); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.lib-item .li-artist{font-size:13px; color:var(--muted); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.lib-empty{color:var(--muted); font-weight:600; padding:6px}
+
+/* MIDI learn */
+.learn{margin-top:16px; background:#fff; border:3px solid var(--yellow); border-radius:26px; padding:14px}
+.learn h2{margin:0 0 6px; font-family:var(--display); font-size:20px}
+.lrow{display:grid; grid-template-columns:minmax(0,1fr) auto auto auto; gap:8px; align-items:center; padding:7px 0; border-top:2px solid var(--line); font-size:13px}
+.lrow span{min-width:0; overflow-wrap:anywhere; font-weight:600}
+.lrow code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px; color:var(--muted); white-space:nowrap}
+.armed{outline:3px solid var(--yellow); outline-offset:2px}
+
+.toast{
+  position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%);
+  background:var(--purple); color:#fff; padding:10px 18px; border-radius:999px; font-family:var(--display); font-weight:600;
+  box-shadow:0 8px 24px rgba(0,0,0,.2); max-width:calc(100% - 32px); text-align:center; z-index:20;
+}
+</style>
+</head>
+<body>
+<div class="party">
+  <header class="party-head">
+    <div>
+      <h1>Party Deck Controller</h1>
+      <p class="tag">Két deck, zenekönyvtár és MIDI-vezérlő, minden egy helyen</p>
+    </div>
+    <div class="tools">
+      <span class="pill" id="midiState">MIDI: nincs kapcsolat</span>
+      <button class="alt" id="midiBtn">MIDI bekapcsolása</button>
+      <button class="ghost" id="learnToggle" aria-expanded="false" aria-controls="learn">MIDI-hozzárendelés</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div id="deckA"></div>
+
+    <section class="mixer" aria-label="Mixer">
+      <div class="mix-top">
+        <div class="lcd"><span>A tempó</span><b id="bpm-a">--.-</b></div>
+        <div class="master-wrap" id="masterKnob"></div>
+        <div class="lcd"><span>B tempó</span><b id="bpm-b">--.-</b></div>
+      </div>
+      <div class="vu" id="vu" aria-hidden="true"></div>
+      <div class="channels" id="channels"></div>
+      <div class="xf-row">
+        <span>A</span>
+        <input type="range" min="0" max="1" step="0.01" data-ctl="xfade" aria-label="Crossfader">
+        <span>B</span>
+      </div>
+      <p class="hint">Nyilakkal: egy lépés 2%, Shift-tel 10%. PageUp/PageDown 10%. Tárcsáknál: húzd fel-le vagy görgess. A pádok ugrópontok és hurkok.</p>
+    </section>
+
+    <div id="deckB"></div>
+  </div>
+
+  <section class="library" aria-label="Zenekönyvtár">
+    <div class="lib-head">
+      <h2>Zenekönyvtár</h2>
+      <label class="btn alt2">+ Számok hozzáadása
+        <input type="file" multiple accept="audio/*" id="libInput" hidden>
+      </label>
+    </div>
+    <div class="drop-zone" id="libDrop">Húzz ide több számot is, akár zene közben. Utána a számok A vagy B deckre tehetők.</div>
+    <div class="lib-list" id="libList"></div>
+  </section>
+
+  <section class="learn" id="learn" hidden aria-label="MIDI-hozzárendelés">
+    <h2>MIDI-hozzárendelés</h2>
+    <p class="hint" id="learnHint"></p>
+    <div id="learnList"></div>
+  </section>
+</div>
+<div id="toast" class="toast" hidden role="status"></div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const K = ['a', 'b'];
+const U = k => k.toUpperCase();
+const LOOP_BEATS = [1, 2, 4, 8];
+const PAD_COLORS = { a: ['#ff6fb1', '#ffd23f', '#4fe0bd', '#a98bff'], b: ['#5ec5ff', '#ffd23f', '#4fe0bd', '#ff9a3c'] };
+
+/* ---------- Markup ---------- */
+const knob = (id, label) => `
+  <div class="knob-wrap"><div class="knob" data-knob="${id}" tabindex="0" role="slider" title="${label}" aria-label="${label}"><div class="dial"></div></div><span>${label}</span></div>`;
+const fader = (id, label) => `
+  <div class="fader-col"><input type="range" class="vfader" min="0" max="1" step="0.01" data-ctl="${id}" aria-label="${label}"><span>${label}</span></div>`;
+
+const deckHTML = k => `
+  <section class="deck" data-deck="${k}" aria-label="${U(k)} deck">
+    <div class="deck-top">
+      <label class="btn load">Betöltés<input type="file" accept="audio/*" data-file="${k}" hidden></label>
+      <button class="sm alt" data-btn="${k}.sync">SYNC</button>
+      <button class="sm" data-btn="${k}.tap">TAP</button>
+      <span class="deck-name">${U(k)}</span>
+    </div>
+    <div class="track">
+      <div class="t-title" id="title-${k}">Nincs dal betöltve</div>
+      <div class="t-artist" id="artist-${k}">húzz ide egy számot</div>
+      <div class="t-time" id="time-${k}">0:00 · -0:00</div>
+    </div>
+    <div class="level" aria-hidden="true"><i id="lvl-${k}"></i></div>
+    <div class="deck-main">
+      <div class="jog-wrap">
+        <div class="jog" id="jog-${k}" data-jog="${k}">
+          <div class="jog-center" id="center-${k}"><span>${U(k)}</span></div>
+        </div>
+      </div>
+      <div class="tempo">
+        <input type="range" class="vfader" min="0" max="1" step="0.01" data-ctl="${k}.pitch" aria-label="Tempó">
+        <span>TEMPÓ</span>
+      </div>
+    </div>
+    <div class="transport">
+      <button class="round" data-btn="${k}.cue">CUE</button>
+      <button class="round" id="play-${k}" data-btn="${k}.play" aria-label="Lejátszás">▶</button>
+      <button class="round" id="mode-${k}" data-btn="${k}.mode">Hot cue</button>
+    </div>
+    <div class="pads">
+      ${[0, 1, 2, 3].map(i => `<button class="pad" style="--pc:${PAD_COLORS[k][i]}" data-pad="${k}.${i}" aria-label="Pad ${i + 1}">${i + 1}</button>`).join('')}
+    </div>
+    <input type="range" class="seek" min="0" max="1000" value="0" data-seek="${k}" aria-label="${U(k)} pozíció">
+  </section>`;
+$('#deckA').innerHTML = deckHTML('a');
+$('#deckB').innerHTML = deckHTML('b');
+$('#masterKnob').innerHTML = knob('master', 'Főszint');
+$('#channels').innerHTML = K.map(k => `
+  <div class="channel">
+    <span class="channel-name">${U(k)} csatorna</span>
+    <div class="knobs">
+      ${knob(k + '.trim', 'Trim')}
+      ${knob(k + '.high', 'Hi')}
+      ${knob(k + '.mid', 'Mid')}
+      ${knob(k + '.low', 'Low')}
+    </div>
+    ${fader(k + '.vol', 'Fader')}
+  </div>`).join('');
+$('#vu').innerHTML = ['g','g','g','g','y','y','r','r'].map(c => `<i class="${c}"></i>`).join('');
+
+/* ---------- State ---------- */
+const norm = {};
+const C = {};
+const bindings = {};
+let learning = null;
+const decks = {};
+for (const k of K) decks[k] = {
+  el: new Audio(), nodes: null, an: null, file: null, url: null, coverUrl: null,
+  meta: null, bpmBase: null, taps: [], mode: 'hot', cues: [null, null, null, null],
+  loopOn: false, loopBeats: 0, loopStart: 0, loopEnd: 0
+};
+const angle = { a: 0, b: 0 };
+const library = [];   // { id, file, title, artist }
+
+/* ---------- Audio graph ---------- */
+let ctx = null, master = null, analyser = null, vuBuf = null, levelBuf = null;
+const xf = { a: null, b: null };
+const filter = (type, freq) => { const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.gain.value = 0; return f; };
+function ensureAudio() {
+  if (ctx) return ctx;
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  master = ctx.createGain();
+  analyser = ctx.createAnalyser(); analyser.fftSize = 512; vuBuf = new Float32Array(512);
+  master.connect(analyser);
+  master.connect(ctx.destination);
+  for (const k of K) {
+    const d = decks[k];
+    const side = ctx.createGain(); side.connect(master); xf[k] = side;
+    const trim = ctx.createGain();
+    const low = filter('lowshelf', 250);
+    const mid = filter('peaking', 1000); mid.Q.value = 1;
+    const high = filter('highshelf', 4000);
+    const vol = ctx.createGain();
+    const an = ctx.createAnalyser(); an.fftSize = 256;
+    d.an = an; levelBuf = levelBuf || new Float32Array(256);
+    d.src = ctx.createMediaElementSource(d.el);
+    d.src.connect(trim).connect(low).connect(mid).connect(high).connect(vol);
+    vol.connect(an);
+    vol.connect(side);
+    d.nodes = { trim, low, mid, high, vol };
+  }
+  Object.keys(C).forEach(id => { if (!C[id].btn) C[id].fn(norm[id]); });
+  return ctx;
+}
+const smooth = (p, v) => { if (ctx) p.setTargetAtTime(v, ctx.currentTime, 0.03); };
+
+/* ---------- Controls ---------- */
+const rateOf = k => decks[k].el.playbackRate || 1;
+const effBpm = k => decks[k].bpmBase ? decks[k].bpmBase * rateOf(k) : null;
+for (const k of K) {
+  C[k + '.vol'] = { label: `${U(k)} · Fader`, fn: n => { if (decks[k].nodes) smooth(decks[k].nodes.vol.gain, n); } };
+  C[k + '.trim'] = { label: `${U(k)} · Trim`, fn: n => { if (decks[k].nodes) smooth(decks[k].nodes.trim.gain, 2 ** ((n - 0.5) * 4)); } };
+  for (const [band, lab] of [['low', 'Low'], ['mid', 'Mid'], ['high', 'Hi']]) {
+    C[`${k}.${band}`] = { label: `${U(k)} · ${lab}`, fn: n => { if (decks[k].nodes) smooth(decks[k].nodes[band].gain, (n - 0.5) * 24); } };
+  }
+  C[k + '.pitch'] = { label: `${U(k)} · Tempó`, fn: n => { decks[k].el.playbackRate = 1 + (n - 0.5) * 0.32; } };
+  C[k + '.play'] = { label: `${U(k)} · Lejátszás`, btn: true, fn: () => togglePlay(k) };
+  C[k + '.cue'] = { label: `${U(k)} · CUE`, btn: true, fn: () => cue(k) };
+  C[k + '.sync'] = { label: `${U(k)} · SYNC`, btn: true, fn: () => sync(k) };
+  C[k + '.tap'] = { label: `${U(k)} · TAP`, btn: true, fn: () => tap(k) };
+  C[k + '.mode'] = { label: `${U(k)} · Pad mód`, btn: true, fn: () => toggleMode(k) };
+}
+C.xfade = { label: 'Crossfader', fn: n => { if (xf.a && xf.b) { smooth(xf.a.gain, Math.cos(n * Math.PI / 2)); smooth(xf.b.gain, Math.sin(n * Math.PI / 2)); } } };
+C.master = { label: 'Főszint', fn: n => { if (master) smooth(master.gain, n); } };
+
+const INIT = { 'a.vol': 0.8, 'b.vol': 0.8, 'a.pitch': 0.5, 'b.pitch': 0.5, 'a.trim': 0.5, 'b.trim': 0.5, xfade: 0.5, master: 0.85 };
+for (const k of K) for (const b of ['low', 'mid', 'high']) INIT[`${k}.${b}`] = 0.5;
+
+function setNorm(id, n, fromUi) {
+  n = Math.min(1, Math.max(0, n));
+  norm[id] = n;
+  if (!fromUi) { const inp = document.querySelector(`[data-ctl="${id}"]`); if (inp) inp.value = n; }
+  const dial = document.querySelector(`[data-knob="${id}"] .dial`);
+  if (dial) dial.style.transform = `rotate(${-135 + n * 270}deg)`;
+  const knobEl = document.querySelector(`[data-knob="${id}"]`);
+  if (knobEl) knobEl.setAttribute('aria-valuenow', Math.round(n * 100));
+  C[id].fn(n);
+}
+
+/* ---------- Transport ---------- */
+function togglePlay(k) {
+  const el = decks[k].el;
+  if (!el.src) { toast('Előbb tölts be egy számot'); return; }
+  ensureAudio();
+  if (ctx.state !== 'running') ctx.resume();
+  if (el.paused) el.play().catch(() => toast('Nem indítható a lejátszás'));
+  else el.pause();
+}
+function cue(k) { const el = decks[k].el; if (el.src) { el.pause(); el.currentTime = 0; } }
+function syncPlayUi(k) {
+  const el = decks[k].el, playing = !el.paused;
+  const b = $('#play-' + k);
+  b.textContent = playing ? '❚❚' : '▶';
+  b.classList.toggle('on', playing);
+  document.querySelector(`.deck[data-deck="${k}"]`).classList.toggle('is-playing', playing);
+}
+
+/* ---------- Tempo ---------- */
+function sync(k) {
+  const other = k === 'a' ? 'b' : 'a';
+  const target = effBpm(other), mine = decks[k].bpmBase;
+  if (!target || !mine) { toast('Mindkét decknél kell legyen tempó'); return; }
+  setNorm(k + '.pitch', 0.5 + (target / mine - 1) / 0.32, false);
+  toast(`${U(k)} szinkronban a ${U(other)}-vel`);
+}
+function tap(k) {
+  const d = decks[k], now = performance.now();
+  d.taps = d.taps.filter(t => now - t < 3000);
+  d.taps.push(now);
+  if (d.taps.length < 2) { toast('Koppints tovább a ritmusra'); return; }
+  const gaps = d.taps.slice(1).map((t, i) => t - d.taps[i]);
+  const heard = 60000 / (gaps.reduce((a, b) => a + b, 0) / gaps.length);
+  d.bpmBase = heard / rateOf(k);
+  toast(`Tempó: ${heard.toFixed(1)}`);
+}
+function toggleMode(k) {
+  const d = decks[k];
+  d.mode = d.mode === 'hot' ? 'loop' : 'hot';
+  $('#mode-' + k).textContent = d.mode === 'hot' ? 'Hot cue' : 'Loop';
+  updPads(k);
+}
+function beatLoop(k, beats) {
+  const d = decks[k], el = d.el;
+  if (!el.src) return;
+  if (d.loopOn && d.loopBeats === beats) d.loopOn = false;
+  else {
+    const beat = 60 / (effBpm(k) || 120);
+    d.loopStart = el.currentTime;
+    d.loopEnd = el.currentTime + beats * beat;
+    d.loopBeats = beats; d.loopOn = true;
+  }
+}
+function padPress(k, i) {
+  const d = decks[k], el = d.el;
+  if (!el.src) return;
+  if (d.mode === 'hot') {
+    if (d.cues[i] === null) { d.cues[i] = el.currentTime; toast(`Ugrópont ${i + 1} mentve`); }
+    else el.currentTime = d.cues[i];
+  } else beatLoop(k, LOOP_BEATS[i]);
+  updPads(k);
+}
+function clearPad(k, i) { decks[k].cues[i] = null; updPads(k); toast('Ugrópont törölve'); }
+function updPads(k) {
+  const d = decks[k];
+  [0, 1, 2, 3].forEach(i => {
+    const p = document.querySelector(`[data-pad="${k}.${i}"]`);
+    if (d.mode === 'hot') { p.textContent = i + 1; p.classList.toggle('on', d.cues[i] !== null); }
+    else { p.textContent = LOOP_BEATS[i] + '×'; p.classList.toggle('on', d.loopOn && d.loopBeats === LOOP_BEATS[i]); }
+  });
+}
+
+/* ---------- Loading, tags, BPM ---------- */
+function isAudio(file) { return file && (file.type.startsWith('audio') || /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(file.name)); }
+const baseName = name => name.replace(/\.[^.]+$/, '');
+
+/* Reads title, artist and cover art from the file's tags, if the tag library loaded. */
+function readTags(file) {
+  return new Promise(resolve => {
+    const fallback = { title: baseName(file.name), artist: '', cover: null };
+    if (!window.jsmediatags) { resolve(fallback); return; }
+    window.jsmediatags.read(file, {
+      onSuccess(r) {
+        const t = r.tags || {};
+        let cover = null;
+        if (t.picture) cover = URL.createObjectURL(new Blob([new Uint8Array(t.picture.data)], { type: t.picture.format || 'image/jpeg' }));
+        resolve({ title: t.title || fallback.title, artist: t.artist || '', cover });
+      },
+      onError() { resolve(fallback); }
+    });
+  });
+}
+
+function renderTrack(k) {
+  const d = decks[k];
+  $('#title-' + k).textContent = d.meta ? d.meta.title : 'Nincs dal betöltve';
+  $('#artist-' + k).textContent = d.meta && d.meta.artist ? d.meta.artist : (d.meta ? 'ismeretlen előadó' : 'húzz ide egy számot');
+  const center = $('#center-' + k);
+  center.style.setProperty('--cover', d.meta && d.meta.cover ? `url("${d.meta.cover}")` : '');
+  center.firstElementChild && (center.firstElementChild.hidden = !!(d.meta && d.meta.cover));
+}
+
+async function loadFile(k, file, preMeta) {
+  if (!isAudio(file)) { toast('Hangfájlt válassz (mp3, wav, ogg, m4a)'); return; }
+  const d = decks[k];
+  if (d.url) URL.revokeObjectURL(d.url);
+  d.file = file; d.url = URL.createObjectURL(file);
+  d.el.src = d.url; d.el.load();
+  d.bpmBase = null; d.loopOn = false; d.cues = [null, null, null, null];
+  d.meta = preMeta || await readTags(file);
+  renderTrack(k);
+  updPads(k);
+  analyze(k);
+}
+
+async function analyze(k) {
+  const d = decks[k];
+  if (!d.file) return;
+  toast('Tempó elemzése…');
+  try {
+    const arr = await d.file.arrayBuffer();
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const tmp = new AC();
+    const buf = await tmp.decodeAudioData(arr);
+    tmp.close();
+    const sr = buf.sampleRate, data = buf.getChannelData(0);
+    const len = Math.min(data.length, sr * 60);
+    const hop = Math.floor(sr / 100);
+    const frames = Math.floor(len / hop);
+    const env = new Float32Array(frames);
+    for (let f = 0; f < frames; f++) {
+      let s = 0; const off = f * hop;
+      for (let i = 0; i < hop; i++) { const v = data[off + i]; s += v * v; }
+      env[f] = Math.sqrt(s / hop);
+    }
+    const onset = new Float32Array(frames);
+    for (let f = 1; f < frames; f++) onset[f] = Math.max(0, env[f] - env[f - 1]);
+    let best = 0, bpm = 120;
+    for (let c = 70; c <= 180; c += 0.5) {
+      const lag = Math.round(6000 / c);
+      let sum = 0;
+      for (let f = 0; f + lag < frames; f++) sum += onset[f] * onset[f + lag];
+      if (sum > best) { best = sum; bpm = c; }
+    }
+    while (bpm < 80) bpm *= 2;
+    while (bpm > 160) bpm /= 2;
+    d.bpmBase = bpm;
+    toast(`Tempó: ${bpm.toFixed(1)} (automatikus)`);
+  } catch (e) {
+    toast('Nem sikerült elemezni, használd a TAP gombot');
+  }
+}
+
+const fmtT = s => isFinite(s) ? Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0') : '0:00';
+
+/* ---------- Library ---------- */
+async function addToLibrary(files) {
+  const list = [...files].filter(isAudio);
+  if (!list.length) { toast('Nincs hangfájl a kiválasztottak között'); return; }
+  for (const file of list) {
+    const meta = await readTags(file);
+    library.push({ id: Math.random().toString(36).slice(2), file, title: meta.title, artist: meta.artist, cover: meta.cover });
+  }
+  renderLibrary();
+  toast(`${list.length} szám a könyvtárban`);
+}
+function renderLibrary() {
+  const box = $('#libList');
+  if (!library.length) { box.innerHTML = '<p class="lib-empty">Még nincs szám. Adj hozzá párat, a zene közben is.</p>'; return; }
+  box.innerHTML = library.map(item => `
+    <div class="lib-item">
+      <div style="min-width:0">
+        <div class="li-title">${escapeHtml(item.title)}</div>
+        <div class="li-artist">${escapeHtml(item.artist || 'ismeretlen előadó')}</div>
+      </div>
+      <button class="sm" data-lib-load="${item.id}.a">A-ra</button>
+      <button class="sm alt" data-lib-load="${item.id}.b">B-re</button>
+    </div>`).join('');
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+/* ---------- Toast ---------- */
+let toastTimer = null;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.hidden = true, 2600);
+}
+
+/* ---------- Pointer: knobs, jogs ---------- */
+let knobDrag = null, jogDrag = null;
+document.addEventListener('pointerdown', e => {
+  const kn = e.target.closest('[data-knob]');
+  if (kn) { knobDrag = { id: kn.dataset.knob, y: e.clientY, n: norm[kn.dataset.knob] }; kn.setPointerCapture?.(e.pointerId); e.preventDefault(); return; }
+  const jog = e.target.closest('[data-jog]');
+  if (jog) { jogDrag = { k: jog.dataset.jog, x: e.clientX }; jog.setPointerCapture?.(e.pointerId); e.preventDefault(); }
+});
+document.addEventListener('pointermove', e => {
+  if (knobDrag) setNorm(knobDrag.id, knobDrag.n + (knobDrag.y - e.clientY) / 160, true);
+  if (jogDrag) {
+    const dx = e.clientX - jogDrag.x; jogDrag.x = e.clientX;
+    angle[jogDrag.k] += dx * 0.8;
+    const el = decks[jogDrag.k].el;
+    if (el.src && isFinite(el.duration)) el.currentTime = Math.max(0, Math.min(el.duration, el.currentTime + dx * 0.012));
+  }
+});
+const endDrag = () => { knobDrag = null; jogDrag = null; };
+document.addEventListener('pointerup', endDrag);
+document.addEventListener('pointercancel', endDrag);
+document.addEventListener('wheel', e => {
+  const kn = e.target.closest('[data-knob]');
+  if (kn) { e.preventDefault(); setNorm(kn.dataset.knob, norm[kn.dataset.knob] - Math.sign(e.deltaY) * 0.02, false); }
+}, { passive: false });
+
+/* Keyboard: arrows step 2%, Shift steps 10%, PageUp/PageDown 10%, Home/End jump to the ends. */
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  const id = t.matches('[data-ctl]') ? t.dataset.ctl : (t.matches('[data-knob]') ? t.dataset.knob : null);
+  if (!id) return;
+  const big = e.shiftKey ? 0.1 : 0.02;
+  let next = null;
+  switch (e.key) {
+    case 'ArrowUp': case 'ArrowRight': next = norm[id] + big; break;
+    case 'ArrowDown': case 'ArrowLeft': next = norm[id] - big; break;
+    case 'PageUp': next = norm[id] + 0.1; break;
+    case 'PageDown': next = norm[id] - 0.1; break;
+    case 'Home': next = 0; break;
+    case 'End': next = 1; break;
+    default: return;
+  }
+  e.preventDefault();
+  setNorm(id, next, false);
+});
+
+/* ---------- Events ---------- */
+for (const k of K) {
+  const el = decks[k].el;
+  el.preservesPitch = true;
+  ['play', 'pause', 'ended'].forEach(ev => el.addEventListener(ev, () => syncPlayUi(k)));
+  el.addEventListener('error', () => { if (el.getAttribute('src')) toast('Ezt a fájlt nem tudja lejátszani a böngésző'); });
+  const card = document.querySelector(`.deck[data-deck="${k}"]`);
+  card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag'); });
+  card.addEventListener('dragleave', () => card.classList.remove('drag'));
+  card.addEventListener('drop', e => {
+    e.preventDefault(); card.classList.remove('drag');
+    const f = e.dataTransfer.files[0];
+    if (f) loadFile(k, f);
+  });
+}
+/* Library drop zone accepts many files at once, even during playback. */
+const libDrop = $('#libDrop');
+libDrop.addEventListener('dragover', e => { e.preventDefault(); libDrop.classList.add('over'); });
+libDrop.addEventListener('dragleave', () => libDrop.classList.remove('over'));
+libDrop.addEventListener('drop', e => { e.preventDefault(); libDrop.classList.remove('over'); addToLibrary(e.dataTransfer.files); });
+$('#libInput').addEventListener('change', e => { addToLibrary(e.target.files); e.target.value = ''; });
+
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.matches('[data-ctl]')) setNorm(t.dataset.ctl, parseFloat(t.value), true);
+  if (t.matches('[data-seek]')) {
+    const el = decks[t.dataset.seek].el;
+    if (isFinite(el.duration)) el.currentTime = (t.value / 1000) * el.duration;
+  }
+});
+document.addEventListener('change', e => {
+  if (e.target.matches('[data-file]')) { const f = e.target.files[0]; if (f) loadFile(e.target.dataset.file, f); }
+});
+document.addEventListener('click', e => {
+  const lib = e.target.closest('[data-lib-load]');
+  if (lib) {
+    const [id, k] = lib.dataset.libLoad.split('.');
+    const item = library.find(x => x.id === id);
+    if (item) loadFile(k, item.file, { title: item.title, artist: item.artist, cover: item.cover });
+    return;
+  }
+  const b = e.target.closest('[data-btn]');
+  if (b) { C[b.dataset.btn].fn(); return; }
+  const p = e.target.closest('[data-pad]');
+  if (p) { const [k, i] = p.dataset.pad.split('.'); padPress(k, +i); }
+});
+document.addEventListener('dblclick', e => {
+  const p = e.target.closest('[data-pad]');
+  if (p) { const [k, i] = p.dataset.pad.split('.'); if (decks[k].mode === 'hot') clearPad(k, +i); }
+});
+
+/* ---------- Animation: jogs, LCDs, loops, meters ---------- */
+const lastBpm = { a: '', b: '' };
+const meterVal = { a: 0, b: 0 };
+let lastFrame = performance.now();
+function rms(an, buf) {
+  an.getFloatTimeDomainData(buf);
+  let s = 0; for (const v of buf) s += v * v;
+  return Math.sqrt(s / buf.length);
+}
+function frame(now) {
+  const dt = Math.min(0.1, (now - lastFrame) / 1000);
+  lastFrame = now;
+  for (const k of K) {
+    const d = decks[k], el = d.el;
+    if (!el.paused) angle[k] += 33.33 * 6 * rateOf(k) * dt;
+    angle[k] %= 360;
+    $('#jog-' + k).style.transform = `rotate(${angle[k].toFixed(2)}deg)`;
+    if (d.loopOn && !el.paused && el.currentTime >= d.loopEnd) el.currentTime = d.loopStart;
+    const bpmTxt = effBpm(k) ? effBpm(k).toFixed(1) : '--.-';
+    if (bpmTxt !== lastBpm[k]) { $('#bpm-' + k).textContent = bpmTxt; lastBpm[k] = bpmTxt; }
+    if (d.an) {
+      const lvl = Math.min(1, rms(d.an, levelBuf) * 4);
+      meterVal[k] = Math.max(lvl, meterVal[k] * 0.9);
+      $('#lvl-' + k).style.width = (meterVal[k] * 100).toFixed(1) + '%';
+    }
+  }
+  if (analyser) {
+    const lit = Math.min(8, Math.round(rms(analyser, vuBuf) * 30 * 8));
+    document.querySelectorAll('#vu i').forEach((seg, i) => seg.classList.toggle('on', i < lit));
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+setInterval(() => {
+  for (const k of K) {
+    const el = decks[k].el, dur = el.duration;
+    const left = isFinite(dur) ? dur - el.currentTime : NaN;
+    $('#time-' + k).textContent = isFinite(dur)
+      ? `${fmtT(el.currentTime)} · -${fmtT(left)} (${fmtT(dur)})`
+      : '0:00 · -0:00';
+    const s = document.querySelector(`[data-seek="${k}"]`);
+    if (s && document.activeElement !== s && isFinite(dur) && dur > 0) s.value = (el.currentTime / dur) * 1000;
+  }
+}, 200);
+
+/* ---------- MIDI ---------- */
+function setMidi(text) { $('#midiState').textContent = text; }
+let midi = null;
+function attachInputs() {
+  const ins = [...midi.inputs.values()];
+  ins.forEach(i => i.onmidimessage = onMidi);
+  setMidi(ins.length ? 'MIDI: ' + ins.map(i => i.name).join(', ') : 'MIDI: nincs eszköz csatlakoztatva');
+}
+$('#midiBtn').addEventListener('click', async () => {
+  if (!navigator.requestMIDIAccess) { setMidi('Nem támogatott böngésző (Chrome vagy Edge kell)'); return; }
+  try {
+    midi = await navigator.requestMIDIAccess();
+    attachInputs();
+    midi.onstatechange = attachInputs;
+    $('#midiBtn').textContent = 'MIDI aktív';
+  } catch (e) { setMidi('A MIDI-hozzáférés nem engedélyezett'); }
+});
+const bindingsKey = 'partyDeckBindings';
+function saveBindings() { try { localStorage.setItem(bindingsKey, JSON.stringify(bindings)); } catch (e) {} }
+function loadBindings() { try { Object.assign(bindings, JSON.parse(localStorage.getItem(bindingsKey) || '{}')); } catch (e) {} }
+
+function onMidi(e) {
+  const [st, d1, d2] = e.data;
+  const cmd = st & 0xf0, ch = (st & 0x0f) + 1;
+  let key, press = false;
+  if (cmd === 0xB0) { key = `CC${ch}:${d1}`; press = d2 > 0; }
+  else if (cmd === 0x90 && d2 > 0) { key = `Note${ch}:${d1}`; press = true; }
+  else return;
+  if (learning) {
+    if (!C[learning].btn && cmd !== 0xB0) { toast('Tárcsához vagy csúszkához CC üzenet kell'); return; }
+    if (C[learning].btn && cmd === 0xB0 && d2 === 0) return;
+    for (const k of Object.keys(bindings)) if (bindings[k] === learning) delete bindings[k];
+    bindings[key] = learning; saveBindings(); learning = null; renderLearn(); toast('Hozzárendelve');
+    return;
+  }
+  const id = bindings[key];
+  if (!id) return;
+  if (C[id].btn) { if (press) C[id].fn(); }
+  else if (cmd === 0xB0) setNorm(id, d2 / 127, false);
+}
+
+function renderLearn() {
+  $('#learnList').innerHTML = Object.keys(C).map(id => {
+    const key = Object.keys(bindings).find(k => bindings[k] === id);
+    const shown = key
+      ? key.replace(/^CC(\d+):(\d+)$/, 'CC $2 · csat. $1').replace(/^Note(\d+):(\d+)$/, 'Gomb $2 · csat. $1')
+      : '—';
+    return `<div class="lrow">
+      <span>${C[id].label}</span>
+      <code>${shown}</code>
+      <button class="sm ${learning === id ? 'armed' : 'ghost'}" data-arm="${id}">${learning === id ? 'Várakozás…' : 'Tanulás'}</button>
+      ${key ? `<button class="sm ghost" data-unbind="${id}">Töröl</button>` : ''}
+    </div>`;
+  }).join('');
+  $('#learnHint').textContent = learning
+    ? `Mozdítsd meg a vezérlőn azt az elemet, ami ehhez tartozik: ${C[learning].label}`
+    : 'Kattints a Tanulás gombra, majd mozdítsd meg a MIDI-vezérlőn a megfelelő gombot vagy tárcsát. A pádokat nem lehet tanítani.';
+}
+$('#learnToggle').addEventListener('click', () => {
+  const panel = $('#learn');
+  panel.hidden = !panel.hidden;
+  $('#learnToggle').setAttribute('aria-expanded', String(!panel.hidden));
+  renderLearn();
+});
+$('#learnList').addEventListener('click', e => {
+  const arm = e.target.closest('[data-arm]'), un = e.target.closest('[data-unbind]');
+  if (arm) { const id = arm.dataset.arm; learning = learning === id ? null : id; renderLearn(); }
+  if (un) {
+    const id = un.dataset.unbind;
+    for (const k of Object.keys(bindings)) if (bindings[k] === id) delete bindings[k];
+    saveBindings(); renderLearn();
+  }
+});
+
+/* ---------- Boot ---------- */
+loadBindings();
+Object.keys(INIT).forEach(id => setNorm(id, INIT[id], false));
+K.forEach(k => { syncPlayUi(k); updPads(k); renderTrack(k); });
+renderLibrary();
+renderLearn();
+if (!navigator.requestMIDIAccess) setMidi('MIDI: nem támogatott böngésző');
+</script>
+</body>
+</html>
+
+</body></html>
