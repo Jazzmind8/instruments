@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JavaScript alapok, 1. rész</title>
+<style>
+  body{font-family:system-ui,"Segoe UI",Roboto,sans-serif; line-height:1.6; max-width:760px; margin:0 auto; padding:20px 16px 60px; color:#2b1f36; background:#fff8fc}
+  h1{color:#e0457f; margin-bottom:4px}
+  h2{color:#7a4fd6; margin-top:40px; border-bottom:2px solid #f0d6ea; padding-bottom:4px}
+  h3{margin-top:24px}
+  pre{background:#241a2e; color:#f8eefc; padding:14px; border-radius:12px; overflow-x:auto; font-size:14px}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace}
+  p code, li code{background:#f3e6f7; padding:1px 5px; border-radius:6px; font-size:0.95em}
+  .tip{background:#eaf9f3; border-left:5px solid #2fb98c; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .task{background:#fff3d6; border-left:5px solid #f5b600; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .warn{background:#ffe9ee; border-left:5px solid #e0457f; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .out{background:#f3f6ff; border:1px dashed #9aa7d6; padding:8px 12px; border-radius:8px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:14px}
+  .toc li{margin:4px 0}
+</style>
+</head>
+<body>
+
+<h1>JavaScript alapok</h1>
+<p><b>1. rész a sorozatból.</b> Ebben az első részben a számítógépes előkészületeket, a HTML, CSS és JavaScript szerepét, a változókat, a feltételeket, a függvényeket és az eseményeket tanuljuk meg. A végén írsz egy kis gombos programot, ami már működik.</p>
+
+<h2>Tartalomjegyzék</h2>
+<ol class="toc">
+  <li>Előkészületek</li>
+  <li>Mi a HTML, a CSS és a JavaScript?</li>
+  <li>Az első oldalad</li>
+  <li>Változók: adatok eltárolása</li>
+  <li>Feltételek: döntések a programban</li>
+  <li>Függvények: újrahasznosítható kódrészek</li>
+  <li>Gombok és események: a program reagál</li>
+  <li>Ciklusok: ismétlés</li>
+  <li>Tömbök és objektumok: rendezett adatok</li>
+  <li>Összefoglaló és első önálló feladat</li>
+</ol>
+
+<h2>1. Előkészületek</h2>
+<p>A tanuláshoz számítógép kell, a telefon nehézkesebb a kódíráshoz. Szükséged lesz:</p>
+<ul>
+  <li><b>Böngésző:</b> Chrome vagy Edge. Ebben futtatod a programokat.</li>
+  <li><b>Szövegszerkesztő:</b> a Visual Studio Code ingyenes, és sok segítséget ad a kódíráshoz. Letöltés: <code>code.visualstudio.com</code>.</li>
+  <li><b>Egy mappa:</b> hozz létre egy új mappát, például <code>javascript-tanulas</code> néven. Ide kerülnek a fájljaid.</li>
+</ul>
+
+<div class="tip"><b>Tipp:</b> a kódot mindig a böngészőben futtatva próbáld ki. Ha valami nem működik, a böngésző mindig jelez, miért, az F12 gombbal megnyitható „Konzol” fül pedig megmutatja a hibaüzeneteket.</div>
+
+<h2>2. Mi a HTML, a CSS és a JavaScript?</h2>
+<p>Egy weboldal három nyelv együttműködésével készül. Egy hasonlat segíthet: egy ház építéséhez falra, festékre és villanyra van szükség.</p>
+<ul>
+  <li><b>HTML</b> a <i>szerkezet</i>. Ez a falak és az ajtók: milyen elemek vannak az oldalon, például címsor, gomb vagy kép.</li>
+  <li><b>CSS</b> a <i>megjelenés</i>. Ez a festés és a bútorok: színek, betűk, elrendezés.</li>
+  <li><b>JavaScript</b> a <i>viselkedés</i>. Ez az elektromosság: a gomb megnyomására mit történik, mit számol, mit mutat.</li>
+</ul>
+<p>A pultunkban is pont ez a három rész működik együtt: a HTML adja a gombokat és csúszkákat, a CSS a kinézetet, a JavaScript a hangot és a keverést.</p>
+
+<h2>3. Az első oldalad</h2>
+<p>Hozz létre egy <code>index.html</code> nevű fájlt a mappában, és írd bele:</p>
+<pre><code>&lt;!doctype html&gt;
+&lt;html lang="hu"&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8"&gt;
+  &lt;title&gt;Az első oldalam&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h1&gt;Helló, világ!&lt;/h1&gt;
+  &lt;p&gt;Ez az első bekezdésem.&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+<p>Nyisd meg a fájlt a böngészőben duplakattintással. Látnod kell a címsort és a bekezdést.</p>
+
+<div class="tip"><b>Mit jelentenek a „&lt;” jelek?</b> A HTML-ben az elemeket kisebb- és nagyobb jelek között írjuk, például <code>&lt;h1&gt;</code> nyitja a címsort, <code>&lt;/h1&gt;</code> zárja. Ezek a „címkék”.</div>
+
+<h3>A JavaScript a HTML-be kerül</h3>
+<p>A JavaScript kódot a <code>&lt;script&gt;</code> elemen belül írjuk, általában a <code>&lt;/body&gt;</code> elé:</p>
+<pre><code>&lt;script&gt;
+  console.log("Ez a JavaScript üzenete");
+&lt;/script&gt;</code></pre>
+<p>A <code>console.log</code> üzenetet ír a Konzolba. Az F12 gombbal nyisd meg, és az üzenetet ott fogod látni.</p>
+
+<div class="task"><b>1. feladat:</b> Írj be egy saját szöveget a <code>console.log</code>-ba, mentsd el, és töltsd újra az oldalt. Megjelenik?</div>
+
+<h2>4. Változók: adatok eltárolása</h2>
+<p>A változó egy doboz, amibe adatot teszel, és később név alapján visszakeresheted. Így kezdődik:</p>
+<pre><code>let nev = "Anna";
+let eletkor = 25;
+let kedvencZene = "house";
+console.log(nev);
+console.log(eletkor);</code></pre>
+<div class="out">Anna<br>25</div>
+
+<h3>let és const</h3>
+<ul>
+  <li><code>let</code>: a változó értéke később megváltoztatható.</li>
+  <li><code>const</code>: a változó értéke állandó, nem írható felül.</li>
+</ul>
+<pre><code>const uzenet = "Szia";   // ezt később nem lehet átírni
+let pontszam = 0;        // ezt később igen
+pontszam = pontszam + 1; // most már 1
+console.log(pontszam);   // 1</code></pre>
+
+<div class="tip"><b>Szabály:</b> alapértelmezésként <code>const</code>-t használj. Csak akkor válts <code>let</code>-re, ha tudod, hogy az érték változni fog.</div>
+
+<h3>Adattípusok</h3>
+<ul>
+  <li><b>Szám:</b> <code>12</code>, <code>3.5</code>, <code>-7</code></li>
+  <li><b>Szöveg:</b> <code>"Helló"</code>, idézőjelek között</li>
+  <li><b>Logikai érték:</b> <code>true</code> (igaz) vagy <code>false</code> (hamis)</li>
+</ul>
+<pre><code>let bpm = 128;             // szám
+let cim = "Party mix";     // szöveg
+let lejatszas = false;     // logikai érték
+console.log(bpm + 2);      // 130
+console.log(cim + " 2");   // Party mix 2</code></pre>
+
+<div class="warn"><b>Gyakori hiba:</b> a szöveget mindig idézőjelbe kell tenni. A <code>"128"</code> szöveg, nem szám, ezzel nem lehet számolni.</div>
+
+<div class="task"><b>2. feladat:</b> Hozz létre három változót: a kedvenc számod címét, a BPM-jét és azt, hogy lejátszás alatt van-e. Írd ki mindhármat a Konzolba.</div>
+
+<h2>5. Feltételek: döntések a programban</h2>
+<p>Az <code>if</code> (ha) és az <code>else</code> (különben) a program döntéseit írja le:</p>
+<pre><code>let hangero = 70;
+
+if (hangero > 90) {
+  console.log("Túl hangos!");
+} else if (hangero < 10) {
+  console.log("Túl halk!");
+} else {
+  console.log("Jó a hangerő.");
+}</code></pre>
+<div class="out">Jó a hangerő.</div>
+
+<h3>Összehasonlító jelek</h3>
+<ul>
+  <li><code>===</code> egyenlő</li>
+  <li><code>!==</code> nem egyenlő</li>
+  <li><code>&gt;</code> nagyobb, <code>&lt;</code> kisebb</li>
+  <li><code>&gt;=</code> nagyobb vagy egyenlő, <code>&lt;=</code> kisebb vagy egyenlő</li>
+  <li><code>&amp;&amp;</code> és (mindkettőnek igaznak kell lennie), <code>||</code> vagy (legalább az egyik igaz)</li>
+</ul>
+<pre><code>let lejatszas = true;
+let hangero = 50;
+
+if (lejatszas === true && hangero > 0) {
+  console.log("A zene szól.");
+}</code></pre>
+
+<div class="warn"><b>Gyakori hiba:</b> egyenlőségnél mindig három egyenlőségjel kell: <code>===</code>. Az egy egyenlőségjel értéket ad, nem hasonlít össze.</div>
+
+<h2>6. Függvények: újrahasznosítható kódrészek</h2>
+<p>A függvény egy névvel ellátott kódcsomag. Ha többször kell ugyanazt csinálni, ezt írjuk meg egyszer:</p>
+<pre><code>function udvozol(nev) {
+  return "Szia, " + nev + "!";
+}
+
+console.log(udvozol("Péter"));  // Szia, Péter!
+console.log(udvozol("Lili"));   // Szia, Lili!</code></pre>
+<p>A <code>nev</code> a függvény <i>paramétere</i>: ezt adod át bemenetként. A <code>return</code> a visszatérési érték, ezt kapod vissza.</p>
+
+<h3>Nyílfüggvény: a rövidebb forma</h3>
+<p>A mai kódban gyakran látsz nyílfüggvényt, ez ugyanazt csinálja, csak rövidebben:</p>
+<pre><code>const duplaz = (szam) =&gt; szam * 2;
+console.log(duplaz(4));  // 8</code></pre>
+
+<div class="task"><b>3. feladat:</b> Írj egy függvényt, amely két számot kap, és visszaadja az összegüket. Hívd meg háromféle számpárral, és írd ki az eredményeket.</div>
+
+<h2>7. Gombok és események: a program reagál</h2>
+<p>Eddig a kódunk magától futott. A valódi programok a felhasználóra reagálnak: gombnyomásra, csúszka mozgatásra, billentyűre. Ehhez három dolog kell:</p>
+<ol>
+  <li><b>Gomb a HTML-ben:</b> <code>&lt;button id="gomb"&gt;Kattints&lt;/button&gt;</code></li>
+  <li><b>Az elem kiválasztása a JavaScriptben:</b> <code>document.querySelector("#gomb")</code></li>
+  <li><b>Esemény figyelése:</b> <code>addEventListener("click", függvény)</code></li>
+</ol>
+
+<pre><code>&lt;button id="gomb"&gt;Kattints ide&lt;/button&gt;
+&lt;p id="uzenet"&gt;&lt;/p&gt;
+
+&lt;script&gt;
+  const gomb = document.querySelector("#gomb");
+  const uzenet = document.querySelector("#uzenet");
+
+  gomb.addEventListener("click", () =&gt; {
+    uzenet.textContent = "Megnyomtad a gombot!";
+  });
+&lt;/script&gt;</code></pre>
+
+<div class="tip"><b>Az id:</b> a HTML-elemek kapnak egy azonosítót, az <code>id</code>-t. A JavaScript ezzel talál meg egy elemet. A <code>#</code> jel a kiválasztáskor azt jelenti, hogy „azonosító szerint keresek”.</div>
+
+<h3>Számláló: az első valódi mini-program</h3>
+<pre><code>&lt;button id="plusz"&gt;+1&lt;/button&gt;
+&lt;p&gt;Pontszám: &lt;span id="ertek"&gt;0&lt;/span&gt;&lt;/p&gt;
+
+&lt;script&gt;
+  let pontszam = 0;
+  const plusz = document.querySelector("#plusz");
+  const ertek = document.querySelector("#ertek");
+
+  plusz.addEventListener("click", () =&gt; {
+    pontszam = pontszam + 1;
+    ertek.textContent = pontszam;
+  });
+&lt;/script&gt;</code></pre>
+<p>Minden kattintásra a <code>pontszam</code> változó nő eggyel, és a képernyőn is frissül.</p>
+
+<div class="task"><b>4. feladat:</b> Adj hozzá egy „-1” gombot is, ami csökkenti a pontszámot. Figyelj arra, hogy a 0 alá ne menjen.</div>
+
+<h2>8. Ciklusok: ismétlés</h2>
+<p>Ha ugyanazt többször kell megcsinálni, ciklust használunk. Például öt számot írunk ki:</p>
+<pre><code>for (let i = 1; i &lt;= 5; i++) {
+  console.log("Ez a(z) " + i + ". sor.");
+}</code></pre>
+<div class="out">Ez a(z) 1. sor.<br>Ez a(z) 2. sor.<br>Ez a(z) 3. sor.<br>Ez a(z) 4. sor.<br>Ez a(z) 5. sor.</div>
+<p>A <code>for</code> három részből áll: a kezdőérték, a feltétel, és a lépés. Addig fut, amíg a feltétel igaz.</p>
+
+<div class="task"><b>5. feladat:</b> Írj egy ciklust, ami kiírja a 2, 4, 6, … 20 számokat.</div>
+
+<h2>9. Tömbök és objektumok: rendezett adatok</h2>
+<h3>Tömb: számok vagy szövegek listája</h3>
+<pre><code>const szamok = [10, 20, 30];
+console.log(szamok[0]);       // 10, az első elem
+console.log(szamok.length);   // 3, a db
+szamok.push(40);              // hozzáadás a végére
+console.log(szamok);          // [10, 20, 30, 40]</code></pre>
+
+<h3>Objektum: egy dolog tulajdonságai</h3>
+<p>Az objektum kulcs és érték párokat tárol. Ezzel írjuk le például egy számot:</p>
+<pre><code>const szam = {
+  cim: "Party mix",
+  eloado: "DJ Példa",
+  bpm: 128
+};
+console.log(szam.cim);     // Party mix
+console.log(szam.bpm);     // 128</code></pre>
+
+<h3>Tömb bejárása</h3>
+<pre><code>const szamok = ["Első", "Második", "Harmadik"];
+szamok.forEach((elem) =&gt; {
+  console.log(elem);
+});</code></pre>
+<p>A pultunkban a zenekönyvtár is egy tömb, a számokat objektumként tároljuk, és egy ciklussal rajzoljuk ki őket a képernyőre.</p>
+
+<h2>10. Összefoglaló és első önálló feladat</h2>
+<p>Most már tudod:</p>
+<ul>
+  <li>hogy a HTML, CSS és JavaScript hogyan viszonyul egymáshoz,</li>
+  <li>hogyan írj változókat, feltételeket és függvényeket,</li>
+  <li>hogyan reagál a program gombnyomásra,</li>
+  <li>hogyan ismételsz ciklussal, és hogyan tárolsz listát vagy objektumot.</li>
+</ul>
+
+<div class="task"><b>Önálló feladat:</b> készíts egy oldalt, amelyen van egy <i>Lejátszás</i> és egy <i>Szünet</i> gomb, és egy szöveg, ami azt mutatja: „Szól” vagy „Áll”. A gombok állítsák a szöveget. Ha elakadsz, írd meg a kódodat, és segítek megtalálni a hibát.</div>
+
+<div class="tip"><b>Mi jön a következő részben?</b> A DOM részletesebben (elemek létrehozása, módosítása), a hang lejátszása a JavaScripttel, és az első két deck. Ha szeretnéd, folytatjuk.</div>
+
+</body>
+</html>

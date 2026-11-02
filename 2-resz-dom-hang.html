@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JavaScript, 2. rész: DOM és hang</title>
+<style>
+  body{font-family:system-ui,"Segoe UI",Roboto,sans-serif; line-height:1.6; max-width:760px; margin:0 auto; padding:20px 16px 60px; color:#2b1f36; background:#fff8fc}
+  h1{color:#e0457f; margin-bottom:4px}
+  h2{color:#7a4fd6; margin-top:40px; border-bottom:2px solid #f0d6ea; padding-bottom:4px}
+  h3{margin-top:24px}
+  pre{background:#241a2e; color:#f8eefc; padding:14px; border-radius:12px; overflow-x:auto; font-size:14px}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace}
+  p code, li code{background:#f3e6f7; padding:1px 5px; border-radius:6px; font-size:0.95em}
+  .tip{background:#eaf9f3; border-left:5px solid #2fb98c; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .task{background:#fff3d6; border-left:5px solid #f5b600; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .warn{background:#ffe9ee; border-left:5px solid #e0457f; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .out{background:#f3f6ff; border:1px dashed #9aa7d6; padding:8px 12px; border-radius:8px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:14px}
+  .toc li{margin:4px 0}
+</style>
+</head>
+<body>
+
+<h1>DOM és hang</h1>
+<p><b>2. rész a sorozatból.</b> Az első részben megtanultad a változókat, a feltételeket, a függvényeket és a gombokat. Most azt tanuljuk meg, hogyan módosíthatja a JavaScript az oldal elemeit, és hogyan szólaltatunk meg egy hangfájlt a böngészőben. A végén egy saját lejátszót készítesz.</p>
+
+<h2>Tartalomjegyzék</h2>
+<ol class="toc">
+  <li>Mi az a DOM?</li>
+  <li>Elemek kiválasztása</li>
+  <li>Szöveg, tulajdonság és stílus módosítása</li>
+  <li>Új elem létrehozása</li>
+  <li>A hang: az audio elem</li>
+  <li>Fájl betöltése a számítógépről</li>
+  <li>Állapot kijelzése és az idő</li>
+  <li>Feladatok</li>
+</ol>
+
+<h2>1. Mi az a DOM?</h2>
+<p>Amikor a böngésző betölt egy HTML-fájlt, felépít belőle egy <b>fa-szerkezetet</b>. Ezt hívjuk DOM-nak (Document Object Model, dokumentumobjektum-modell). Minden HTML-elem egy ága ennek a fának.</p>
+<pre><code>html
+├── head
+│   └── title
+└── body
+    ├── h1
+    ├── p
+    └── button</code></pre>
+<p>A JavaScript a DOM-on keresztül éri el az oldal elemeit. Ha megváltoztatod a fát, a képernyőn is változik minden, ami a fához tartozik.</p>
+
+<div class="tip"><b>Lényeg:</b> a JavaScript nem a HTML-fájlt írja át, hanem az élő, a böngészőben lévő oldalt. A fájl változatlan marad, csak a képernyőn lévő kép változik.</div>
+
+<h2>2. Elemek kiválasztása</h2>
+<p>Ahhoz, hogy megváltoztasd egy elemet, először ki kell választanod. Három gyakori módja van:</p>
+<pre><code>// 1. azonosító szerint (id="cim")
+const cim = document.querySelector("#cim");
+
+// 2. osztály szerint (class="gomb")
+const elsoGomb = document.querySelector(".gomb");
+
+// 3. az összes ilyen elem, listaként
+const osszesGomb = document.querySelectorAll(".gomb");</code></pre>
+
+<div class="tip"><b>Jelölés:</b> <code>#</code> az azonosítóra (id), <code>.</code> az osztályra (class) utal. A <code>querySelector</code> az első találatot adja, a <code>querySelectorAll</code> mindet.</div>
+
+<div class="warn"><b>Gyakori hiba:</b> ha a <code>querySelector</code> <code>null</code>-t ad vissza, az azt jelenti, hogy a keresett elem nincs az oldalon. Ellenőrizd az <code>id</code>-t és a szóközöket, és a <code>script</code> elemet a HTML végére tedd, hogy a böngésző már mindent betöltsön.</div>
+
+<h2>3. Szöveg, tulajdonság és stílus módosítása</h2>
+<p>Egy kiválasztott elemnek több részét változtathatod meg:</p>
+<pre><code>const cim = document.querySelector("#cim");
+
+cim.textContent = "Új cím";          // a szöveg
+cim.setAttribute("title", "Súgó");   // egy tulajdonság, például a title
+cim.style.color = "#e0457f";         // a stílus, a CSS-nek megfelelő névvel</code></pre>
+
+<h3>Osztályok kezelése: classList</h3>
+<p>Egy elemre osztályt rakhatsz, és az osztály alapján a CSS más stílust adhat neki. A <code>classList</code> ezt kezeli:</p>
+<pre><code>const doboz = document.querySelector("#doboz");
+
+doboz.classList.add("kiemelt");     // hozzáadja az osztályt
+doboz.classList.remove("kiemelt");  // eltávolítja
+doboz.classList.toggle("kiemelt");  // ha van, elveszi; ha nincs, hozzáadja</code></pre>
+
+<div class="tip"><b>Miért jó ez?</b> a stílust a CSS-ben írod meg egyszer, a JavaScript csak az osztályt kapcsolgatja. Így a kód rendezettebb marad.</div>
+
+<h3>Mikor használd a textContent-et, és mikor az innerHTML-t?</h3>
+<ul>
+  <li><code>textContent</code>: egyszerű szöveget ír be. Ezt használd általában.</li>
+  <li><code>innerHTML</code>: HTML-kódot is beír. Csak akkor, ha tudod, hogy a tartalom biztonságos, mert idegen szöveg beírásakor veszélyes lehet.</li>
+</ul>
+<div class="warn"><b>Szabály:</b> felhasználótól érkező szöveget soha ne tegyél <code>innerHTML</code>-be, mindig <code>textContent</code>-be.</div>
+
+<h2>4. Új elem létrehozása</h2>
+<p>A JavaScript új elemeket is tud létrehozni, és az oldalhoz adni:</p>
+<pre><code>const lista = document.querySelector("#lista");
+
+const uj = document.createElement("li");   // új li elem
+uj.textContent = "Ez egy új sor";
+lista.appendChild(uj);                     // hozzáadás a lista végére</code></pre>
+<p>Ezzel tudod majd később kirajzolni a zenekönyvtár számait, mindegyikhez egy sor.</p>
+
+<div class="task"><b>1. feladat:</b> Készíts egy <code>&lt;ul id="lista"&gt;&lt;/ul&gt;</code> listát, és egy gombot. Minden gombnyomásra adj hozzá egy új sort, amely a sorszámát írja ki: „1. elem”, „2. elem” és így tovább.</div>
+
+<h2>5. A hang: az audio elem</h2>
+<p>A böngészőben a hangot az <code>&lt;audio&gt;</code> elem szólaltatja meg. Ez az elem nem látszik, csak a hangot játssza le. A JavaScriptből ezeket a parancsokat használod:</p>
+<ul>
+  <li><code>src</code>: a hangfájl címe, amit le kell játszani.</li>
+  <li><code>play()</code>: elindítja a lejátszást.</li>
+  <li><code>pause()</code>: megállítja.</li>
+  <li><code>currentTime</code>: hány másodpercnél tart a lejátszás.</li>
+  <li><code>duration</code>: a szám teljes hossza másodpercben.</li>
+  <li><code>paused</code>: igaz (true), ha áll; hamis (false), ha szól.</li>
+</ul>
+
+<pre><code>&lt;audio id="lejatszo" src="pelda.mp3"&gt;&lt;/audio&gt;
+&lt;button id="play"&gt;Lejátszás&lt;/button&gt;
+
+&lt;script&gt;
+  const lejatszo = document.querySelector("#lejatszo");
+  const play = document.querySelector("#play");
+
+  play.addEventListener("click", () =&gt; {
+    lejatszo.play();
+  });
+&lt;/script&gt;</code></pre>
+
+<div class="warn"><b>Fontos szabály:</b> a böngészők nem engedik, hogy a hang magától, gombnyomás nélkül elinduljon. Ezért a <code>play()</code>-t mindig egy kattintás (vagy billentyűlenyomás) eseményében hívd meg.</div>
+
+<h2>6. Fájl betöltése a számítógépről</h2>
+<p>A felhasználó a saját fájljait egy <code>&lt;input type="file"&gt;</code> elemmel választja ki. A kiválasztás után a <code>change</code> esemény fut le:</p>
+<pre><code>&lt;input type="file" id="fajl" accept="audio/*"&gt;
+
+&lt;script&gt;
+  const fajl = document.querySelector("#fajl");
+
+  fajl.addEventListener("change", () =&gt; {
+    const kivalasztott = fajl.files[0];   // az első kiválasztott fájl
+    console.log("Kiválasztva:", kivalasztott.name);
+  });
+&lt;/script&gt;</code></pre>
+<p>A fájlt a <code>URL.createObjectURL</code> teszi olyan címmé, amelyet az audio elem le tud játszani:</p>
+<pre><code>const cim = URL.createObjectURL(kivalasztott);
+lejatszo.src = cim;</code></pre>
+
+<h2>7. Állapot kijelzése és az idő</h2>
+<p>Ha a lejátszás közben az időt is szeretnéd kiírni, a <code>setInterval</code> függvény ismételten lefuttat egy kódot. Ez a 500 milliszekundumonként futó frissítés:</p>
+<pre><code>setInterval(() =&gt; {
+  const eltelt = Math.floor(lejatszo.currentTime);
+  const perc = Math.floor(eltelt / 60);
+  const mp = String(eltelt % 60).padStart(2, "0");
+  kijelzo.textContent = perc + ":" + mp;
+}, 500);</code></pre>
+<p>A <code>Math.floor</code> lefelé kerekít, a <code>%</code> a maradékot adja, a <code>padStart</code> pedig a másodperceket két számjegyre egészíti ki, így „1:05” lesz „1:5” helyett.</p>
+
+<div class="tip"><b>Tipp:</b> ha a böngésző F12-es Konzoljába írsz <code>console.log(lejatszo.currentTime)</code>-ot, azonnal látod, hogy működik-e a parancs.</div>
+
+<h2>8. Feladatok</h2>
+
+<div class="task"><b>2. feladat (közös):</b> Készíts egy oldalt, amely:
+<ul>
+  <li>egy fájlválasztóval betölt egy hangfájlt,</li>
+  <li>tartalmaz <i>Lejátszás</i>, <i>Szünet</i> és <i>Újrakezdés</i> gombot,</li>
+  <li>a gombok után azt mutatja, hogy szól-e vagy áll,</li>
+  <li>az eltelt időt „perc:másodperc” formában kiírja.</li>
+</ul>
+Az <i>Újrakezdés</i> gomb állítsa a <code>currentTime</code>-ot nullára, és indítsa újra a lejátszást.</div>
+
+<div class="task"><b>3. feladat (bónusz):</b> A gomb legyen kettős funkciójú: ha szól a zene, megállítsa, ha áll, elindítsa. A szöveg a gomb feliratán változzon: „Szünet” vagy „Lejátszás”. Itt a <code>paused</code> tulajdonságot használd.</div>
+
+<div class="tip"><b>Mi jön a 3. részben?</b> A két deck, a független lejátszók, és a hangerő-szabályzás. Ezzel már a pult egyik fele is működni fog.</div>
+
+</body>
+</html>

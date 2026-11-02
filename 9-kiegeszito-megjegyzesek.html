@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kiegészítő fejezet: tippek és hibák</title>
+<style>
+  body{font-family:system-ui,"Segoe UI",Roboto,sans-serif; line-height:1.6; max-width:760px; margin:0 auto; padding:20px 16px 60px; color:#2b1f36; background:#fff8fc}
+  h1{color:#e0457f; margin-bottom:4px}
+  h2{color:#7a4fd6; margin-top:40px; border-bottom:2px solid #f0d6ea; padding-bottom:4px}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace; background:#f3e6f7; padding:1px 5px; border-radius:6px; font-size:0.95em}
+  .tip{background:#eaf9f3; border-left:5px solid #2fb98c; padding:10px 14px; border-radius:8px; margin:14px 0}
+  .warn{background:#ffe9ee; border-left:5px solid #e0457f; padding:10px 14px; border-radius:8px; margin:14px 0}
+  .toc li{margin:4px 0}
+</style>
+</head>
+<body>
+
+<h1>Kiegészítő fejezet: tippek, hibák és megjegyzések</h1>
+<p>Ez a fejezet az 1–8. rész összes kiemelt megjegyzését (tipp, szabály, gyakori hiba) gyűjti össze egy helyre. Akkor érdemes előkapni, ha valami nem működik, vagy ha egy részt újra át szeretnél nézni.</p>
+
+<h2>Tartalomjegyzék</h2>
+<ol class="toc">
+  <li>1. rész: alapok</li>
+  <li>2. rész: DOM és hang</li>
+  <li>3. rész: két deck</li>
+  <li>4. rész: keverés</li>
+  <li>5. rész: látvány</li>
+  <li>6. rész: tempó</li>
+  <li>7. rész: MIDI és billentyűk</li>
+  <li>8. rész: mentés, sor és export</li>
+  <li>Gyors ellenőrző lista hibakereséshez</li>
+</ol>
+
+<h2>1. rész: alapok</h2>
+<div class="tip"><b>Tipp:</b> a kódot mindig a böngészőben futtatva próbáld ki. Ha valami nem működik, a böngésző jelez, miért. Az F12 gombbal megnyitható „Konzol” fül mutatja a hibaüzeneteket.</div>
+<div class="tip"><b>Mit jelentenek a „&lt;” jelek?</b> A HTML-ben az elemeket kisebb- és nagyobb jelek között írjuk, például <code>&lt;h1&gt;</code> nyitja a címsort, <code>&lt;/h1&gt;</code> zárja. Ezek a „címkék”.</div>
+<div class="tip"><b>Szabály:</b> alapértelmezésként <code>const</code>-t használj. Csak akkor válts <code>let</code>-re, ha tudod, hogy az érték változni fog.</div>
+<div class="warn"><b>Gyakori hiba:</b> a szöveget mindig idézőjelbe kell tenni. A <code>"128"</code> szöveg, nem szám, ezzel nem lehet számolni.</div>
+<div class="warn"><b>Gyakori hiba:</b> egyenlőségnél mindig három egyenlőségjel kell: <code>===</code>. Az egy egyenlőségjel értéket ad, nem hasonlít össze.</div>
+<div class="tip"><b>Az id:</b> a HTML-elemek kapnak egy azonosítót, az <code>id</code>-t. A JavaScript ezzel talál meg egy elemet. A <code>#</code> jel a kiválasztáskor azt jelenti, hogy „azonosító szerint keresek”.</div>
+
+<h2>2. rész: DOM és hang</h2>
+<div class="tip"><b>Lényeg:</b> a JavaScript nem a HTML-fájlt írja át, hanem az élő, a böngészőben lévő oldalt. A fájl változatlan marad, csak a képernyőn lévő kép változik.</div>
+<div class="tip"><b>Jelölés:</b> <code>#</code> az azonosítóra (id), <code>.</code> az osztályra (class) utal. A <code>querySelector</code> az első találatot adja, a <code>querySelectorAll</code> mindet.</div>
+<div class="warn"><b>Gyakori hiba:</b> ha a <code>querySelector</code> <code>null</code>-t ad vissza, a keresett elem nincs az oldalon. Ellenőrizd az <code>id</code>-t és a szóközöket, és a <code>script</code> elemet a HTML végére tedd, hogy a böngésző már mindent betöltsön.</div>
+<div class="tip"><b>Miért jó ez?</b> A stílust a CSS-ben írod meg egyszer, a JavaScript csak az osztályt kapcsolgatja. Így a kód rendezettebb marad.</div>
+<div class="warn"><b>Szabály:</b> felhasználótól érkező szöveget soha ne tegyél <code>innerHTML</code>-be, mindig <code>textContent</code>-be.</div>
+<div class="warn"><b>Fontos szabály:</b> a böngészők nem engedik, hogy a hang magától, gombnyomás nélkül elinduljon. A <code>play()</code>-t mindig egy kattintás (vagy billentyűlenyomás) eseményében hívd meg.</div>
+<div class="tip"><b>Tipp:</b> ha a Konzolba írsz <code>console.log(lejatszo.currentTime)</code>-ot, azonnal látod, hogy működik-e a parancs.</div>
+
+<h2>3. rész: két deck</h2>
+<div class="tip"><b>Alapelv:</b> ha ugyanazt a kódot kétszer írod le, az már jel, hogy függvényt kellene írnod.</div>
+<div class="tip"><b>Fontos:</b> a <code>value</code> mindig szövegként érkezik. Számmá kell alakítani, ha számolni akarsz vele: például <code>Number(csuszka.value)</code>, vagy egyszerűen <code>csuszka.value / 100</code>, mert az osztás automatikusan számmá alakítja.</div>
+<div class="tip"><b>Összehasonlítás:</b> a régi, <code>+</code> jelekkel összerakott módszer ugyanezt tudja, de a sablonstring olvashatóbb.</div>
+<div class="warn"><b>Gyakori hiba:</b> ha a lejátszó még nincs fájllal, a <code>play()</code> hibát dob. Ezért ellenőrizd előre az <code>if (!lejatszo.src)</code> feltétellel.</div>
+
+<h2>4. rész: keverés</h2>
+<div class="warn"><b>Szabály:</b> a hangmotort csak felhasználói kattintás után lehet elindítani, különben a böngésző csendben tartja.</div>
+<div class="warn"><b>Fontos:</b> egy audio elemhez csak egyszer lehet forrást létrehozni. Ha kétszer hívod, hibát kapsz. A beállítást ezért egyszer, az oldal betöltésekor végezd el.</div>
+<div class="tip"><b>Lényeg:</b> a <code>connect</code> láncolható: <code>a.connect(b).connect(c)</code> egyenértékű azzal, hogy <code>a</code>-t <code>b</code>-hez, <code>b</code>-t <code>c</code>-hez köted.</div>
+<div class="tip"><b>Láncolva:</b> <code>forras.connect(mely).connect(kozep).connect(magas).connect(hangero).connect(ctx.destination)</code>. Ez már egy teljes, EQ-val ellátott sáv.</div>
+<div class="tip"><b>Ellenőrzés:</b> x = 0 → A = 1, B = 0. x = 1 → A = 0, B = 1. x = 0,5 → mindkettő körülbelül 0,707, ami együtt egyenletes hangerőt ad.</div>
+<div class="warn"><b>Gyakori hiba:</b> ha a hang nem szól, nézd meg a Konzolt (F12). A „The AudioContext was not allowed to start” üzenet azt jelzi, hogy a <code>ctx.resume()</code> hiányzik, vagy nem kattintás eseményben van.</div>
+
+<h2>5. rész: látvány</h2>
+<div class="tip"><b>Hasonlat:</b> egy filmkocka-sorozat. Minden kocka egy kicsit más, és a gyors egymásutánban látszik a mozgás.</div>
+<div class="warn"><b>Gyakori hiba:</b> a <code>deg</code> egység kell a szám után, különben a forgatás nem működik.</div>
+<div class="tip"><b>Tipp:</b> a <code>Uint8Array</code> minden képkockánál új tömböt foglal. Egy tanuló programban ez rendben van, később érdemes egyszer létrehozni, és újra felhasználni.</div>
+
+<h2>6. rész: tempó</h2>
+<div class="warn"><b>Gyakori hiba:</b> a becslés a felezett vagy duplázott tempót is adhatja. Egy 140 BPM-es szám 70 vagy 280 is lehet, ha a ritmust rosszul értelmezi. Ezért a kódban a tempót 80 és 160 közé visszük.</div>
+<div class="tip"><b>Miért jó a performance.now()?</b> Ez egy nagy pontosságú óra, amely ezredmásodperc tört részéig megadja az időt. A <code>Date.now()</code> pontatlanabb.</div>
+<div class="tip"><b>Egyszerű szabály:</b> az ütemek pontos hosszából számítsd a hurkot, ne találgass időt másodpercben.</div>
+
+<h2>7. rész: MIDI és billentyűk</h2>
+<div class="tip"><b>Mit jelent az &amp;?</b> Ez a bitenkénti „és” művelet. A <code>statusz &amp; 0xF0</code> eltünteti a csatornaszámot, és csak a típust hagyja meg.</div>
+<div class="warn"><b>Fontos korlátok:</b> a Web MIDI csak HTTPS-en (vagy helyi gépen) működik. Chrome, Edge és Android Chrome támogatja, az iPhone Safari nem. Telefonon, iPhone-on a MIDI-vezérlő tehát nem fog működni.</div>
+<div class="tip"><b>Miért jó ez a szerkezet?</b> A program nem tudja előre, melyik gomb melyik vezérlőről jön. A kötések táblázata választja szét a „hardvert” és a „funkciót”, így ugyanaz a kód bármilyen márkájú vezérlővel működik, csak a kötéseket kell újra tanítani.</div>
+<div class="warn"><b>Gyakori hiba:</b> ha nem nézed meg az <code>e.repeat</code>-et, a lenyomva tartott billentyű sok eseményt küld, és a program hibásan sokszor fut le.</div>
+
+<h2>8. rész: mentés, sor és export</h2>
+<div class="tip"><b>Szabály:</b> a zenei fájlt soha ne a localStorage-ba tedd. Oda csak kicsi szöveg fér, és a fájl ott nem fér el.</div>
+<div class="tip"><b>Tipp:</b> a sort elmentheted a localStorage-ba, de csak a dalok neveit és az azonosítóikat. A fájl maga az IndexedDB-ben marad, és az azonosító alapján újra betölthető.</div>
+<div class="warn"><b>Gyakori hiba:</b> ha az IndexedDB-hez új táblát adsz, a <code>indexedDB.open</code> verziószámát növelni kell (1-ről 2-re), különben az <code>onupgradeneeded</code> nem fut le.</div>
+<div class="tip"><b>Miért 1152?</b> Az MP3 kódoló egy-egy kötegben 1152 mintát dolgoz fel. Ezért a hangot ilyen darabokra bontjuk.</div>
+<div class="warn"><b>Két gyakori hiba:</b>
+  <ul>
+    <li>A service worker csak HTTPS-en (vagy helyi gépen) működik. Ezért kell a GitHub Pages címe.</li>
+    <li>Ha módosítod a fájlokat, de a <code>CACHE</code> nevét nem változtatod (például <code>party-dj-v2</code>-ről <code>party-dj-v3</code>-ra), a telefon a régi, gyorsítótárazott verziót mutatja.</li>
+  </ul>
+</div>
+
+<h2>Gyors ellenőrző lista hibakereséshez</h2>
+<ul>
+  <li>Nyisd meg az F12 Konzolt, és nézd meg az első piros hibaüzenetet.</li>
+  <li>A hang csak kattintás után indulhat el.</li>
+  <li>Az <code>id</code> és a <code>querySelector</code> nevében nincs elírás.</li>
+  <li>A szövegből szám lett-e, ha számolni akarsz vele.</li>
+  <li>Az <code>AudioContext</code> nem jött-e létre kétszer, és az audio elemhez nem kötöttük-e kétszer.</li>
+  <li>MIDI-nél HTTPS van-e, és a böngésző támogatja-e.</li>
+  <li>Offline appnál a <code>CACHE</code> nevét frissítetted-e.</li>
+</ul>
+
+</body>
+</html>

@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JavaScript, 6. rész: tempó</title>
+<style>
+  body{font-family:system-ui,"Segoe UI",Roboto,sans-serif; line-height:1.6; max-width:760px; margin:0 auto; padding:20px 16px 60px; color:#2b1f36; background:#fff8fc}
+  h1{color:#e0457f; margin-bottom:4px}
+  h2{color:#7a4fd6; margin-top:40px; border-bottom:2px solid #f0d6ea; padding-bottom:4px}
+  h3{margin-top:24px}
+  pre{background:#241a2e; color:#f8eefc; padding:14px; border-radius:12px; overflow-x:auto; font-size:14px}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace}
+  p code, li code{background:#f3e6f7; padding:1px 5px; border-radius:6px; font-size:0.95em}
+  .tip{background:#eaf9f3; border-left:5px solid #2fb98c; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .task{background:#fff3d6; border-left:5px solid #f5b600; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .warn{background:#ffe9ee; border-left:5px solid #e0457f; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .toc li{margin:4px 0}
+  .demo{border:2px solid #f0d6ea; border-radius:14px; padding:14px; margin:14px 0; background:#fff; display:grid; gap:12px}
+  .demo .row{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  @media (max-width:560px){ .demo .row{grid-template-columns:1fr} }
+  .deck{border:1px solid #f0d6ea; border-radius:12px; padding:10px; display:grid; gap:8px}
+  .bpm{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:26px; font-weight:700; color:#e0457f; text-align:center; background:#fff7d6; border-radius:10px; padding:6px}
+  .gombok{display:flex; gap:6px; flex-wrap:wrap}
+  button{font:inherit; border:0; border-radius:999px; padding:8px 12px; background:#ff6fb1; color:#fff; cursor:pointer; font-weight:700}
+  button.ghost{background:#fff; color:#2b1f36; border:2px solid #f0d6ea}
+  .uzenet{font-size:14px; color:#7a4fd6; min-height:1.4em}
+</style>
+</head>
+<body>
+
+<h1>Tempó</h1>
+<p><b>6. rész a sorozatból.</b> A DJ-zés lényege az, hogy a két szám ütemre illeszkedjen. Ebben a részben megtanulod, mi az a BPM, hogyan becsülhetjük meg a számítógéppel, hogyan koppintsunk tempót, hogyan hurkoljunk pontosan, és hogyan szinkronizáljuk két deck tempóját.</p>
+
+<h2>Tartalomjegyzék</h2>
+<ol class="toc">
+  <li>Mi az a BPM?</li>
+  <li>A tempó becslése: a lüktetés mérése</li>
+  <li>TAP: a kézi tempó</li>
+  <li>Effektív tempó: a sebesség beszámítása</li>
+  <li>Loop: a pontos hurok</li>
+  <li>SYNC: két deck összehangolása</li>
+  <li>Teljes példa és feladatok</li>
+</ol>
+
+<h2>1. Mi az a BPM?</h2>
+<p>A BPM (beats per minute, ütem percenként) azt mutatja, hány ütem van egy perc alatt. Egy 120 BPM-es szám másodpercenként két ütemet ad. Egy ütem hossza így számolható:</p>
+<pre><code>const beat = 60 / bpm;   // egy ütem hossza másodpercben
+// 120 BPM esetén: 60 / 120 = 0,5 másodperc</code></pre>
+<p>A DJ-zésben a BPM azt határozza meg, mikor kezdődjön a következő szám, és meddig tartson a hurok.</p>
+
+<h2>2. A tempó becslése: a lüktetés mérése</h2>
+<p>A számítógép a hangból nem tudja közvetlenül a BPM-et. Azt mérheti meg, hol erősödik hirtelen a hang, mert az ütemek ilyenkor szólalnak meg. Ez a lüktetés (onset) erőssége. Ha ezek egy szabályos ritmust mutatnak, a legerősebb ismétlődési távolság adja a BPM-et.</p>
+<p>Az egyszerűsített módszer három lépésből áll:</p>
+<ol>
+  <li>A hangot kis részekre bontjuk, és minden részre kiszámoljuk az energiát.</li>
+  <li>Megnézzük, mennyivel nő az energia a következő részben. Ez a lüktetés erőssége.</li>
+  <li>Végigpróbáljuk a lehetséges tempókat, és azt választjuk, amelyiknél a lüktetések a legjobban egybeesnek.</li>
+</ol>
+<pre><code>// A lüktetés-sorozat (onset) minden elemére:
+// hány ütem távolságban ismétlődik? A legtöbb egybeesés adja a BPM-et.
+function becsulBpm(onset, frissFrekvencia) {
+  let legjobb = 0, bpm = 120;
+  for (let c = 70; c &lt;= 180; c += 0.5) {
+    const tavolsag = Math.round(60 * frissFrekvencia / c);   // mintavétel per ütem
+    let osszeg = 0;
+    for (let f = 0; f + tavolsag &lt; onset.length; f++) {
+      osszeg += onset[f] * onset[f + tavolsag];
+    }
+    if (osszeg &gt; legjobb) { legjobb = osszeg; bpm = c; }
+  }
+  return bpm;
+}</code></pre>
+
+<div class="warn"><b>Gyakori hiba:</b> a becslés a felezett vagy duplázott tempót is adhatja. Egy 140 BPM-es szám 70 vagy 280 is lehet, ha a ritmust rosszul értelmezi. Ezért a kódban a tempót mindig visszahozzuk 80 és 160 közé.</div>
+
+<h2>3. TAP: a kézi tempó</h2>
+<p>Ha az automatikus érték téved, kézzel is megadhatod. Minden kattintás időpontját eltárolod, és a különbségeik átlagából számolsz BPM-et:</p>
+<pre><code>const tapok = [];
+
+function tap() {
+  const most = performance.now();          // a kattintás időpontja ezredmásodpercben
+  tapok.push(most);
+  // a 3 másodpercnél régebbi kopogásokat eldobjuk
+  while (tapok.length &gt; 0 &amp;&amp; most - tapok[0] &gt; 3000) tapok.shift();
+  if (tapok.length &lt; 2) return;
+
+  let osszeg = 0;
+  for (let i = 1; i &lt; tapok.length; i++) osszeg += tapok[i] - tapok[i - 1];
+  const atlag = osszeg / (tapok.length - 1);   // átlagos távolság ezredmásodpercben
+  return 60000 / atlag;                       // BPM
+}</code></pre>
+<div class="tip"><b>Miért jó a performance.now()?</b> Ez egy nagy pontosságú óra, amely ezredmásodperc tört részéig megadja az időt. A <code>Date.now()</code> pontatlanabb.</div>
+
+<h2>4. Effektív tempó: a sebesség beszámítása</h2>
+<p>Ha a tempófaderrel lassítasz vagy gyorsítasz, a szám tényleges tempója is változik. Ezt az <i>effektív tempónak</i> hívjuk. Ez a két szám szorzata:</p>
+<pre><code>const effektiv = alapBpm * zene.playbackRate;
+// pl. 120 BPM alap, 1,1-es sebesség: 120 * 1,1 = 132 BPM</code></pre>
+<p>Fontos, hogy a kijelzőn mindig az effektív tempó látszódjon, mert ez az, amit a hallgató hall.</p>
+
+<h2>5. Loop: a pontos hurok</h2>
+<p>A hurok (loop) egy kis szakaszt ismétel. A pontos hossz ütemekből számolódik: 4 ütem hurokhoz <code>4 * beat</code> másodperc kell.</p>
+<pre><code>function hurokIndit(d) {
+  const beat = 60 / (effektiv(d) || 120);   // ha nincs tempó, 120-at feltételezünk
+  d.hurokKezdet = d.zene.currentTime;
+  d.hurokVeg = d.hurokKezdet + 4 * beat;
+  d.hurok = true;
+}
+
+// minden képkockánál:
+if (d.hurok &amp;&amp; !d.zene.paused &amp;&amp; d.zene.currentTime &gt;= d.hurokVeg) {
+  d.zene.currentTime = d.hurokKezdet;   // vissza az elejére
+}</code></pre>
+<div class="tip"><b>Egyszerű szabály:</b> az ütemek pontos hosszából számítsd a hurkot, ne találgass időt másodpercben.</div>
+
+<h2>6. SYNC: két deck összehangolása</h2>
+<p>A SYNC azt jelenti, hogy a második deck sebességét úgy állítjuk, hogy a tempója megegyezzen az elsőével. Az effektív tempók hányadosából számolunk:</p>
+<pre><code>// A cél: a B effektív tempója legyen egyenlő az A effektív tempójával
+const cel = effektiv(A);                 // pl. 128 BPM
+const rata = cel / B.alapBpm;            // mennyivel kell gyorsítani a B-t
+B.zene.playbackRate = rata;</code></pre>
+<p>Ha a sebesség túl nagy vagy kicsi (például 1,6-szoros), a hallható hang szétesik. Ezért a tempófaderek általában ±16%-ot engednek, és a SYNC csak ezen belül működik.</p>
+
+<h2>7. Teljes példa és feladatok</h2>
+<p>Az alábbi demóban két deck van. Mindkettőbe tölts be egy-egy számot. A BPM kijelző az elemzés után jelenik meg, a Tap gombbal kézzel is állíthatod, a Loop 4 ütemes hurkot indít, a SYNC pedig a B decket az A-hoz igazítja.</p>
+
+<div class="demo">
+  <div class="row">
+    <div class="deck" data-deck>
+      <b>A deck</b>
+      <input type="file" accept="audio/*" data-fajl>
+      <audio data-zene></audio>
+      <div class="bpm" data-bpm>--.-</div>
+      <div class="gombok">
+        <button data-play>Lejátszás</button>
+        <button class="ghost" data-tap>Tap</button>
+        <button class="ghost" data-loop>Loop</button>
+      </div>
+      <label>Tempó <input type="range" min="50" max="150" value="100" data-tempo></label>
+      <div class="uzenet" data-uzenet></div>
+    </div>
+    <div class="deck" data-deck>
+      <b>B deck</b>
+      <input type="file" accept="audio/*" data-fajl>
+      <audio data-zene></audio>
+      <div class="bpm" data-bpm>--.-</div>
+      <div class="gombok">
+        <button data-play>Lejátszás</button>
+        <button class="ghost" data-tap>Tap</button>
+        <button class="ghost" data-loop>Loop</button>
+        <button class="ghost" data-sync>SYNC az A-hoz</button>
+      </div>
+      <label>Tempó <input type="range" min="50" max="150" value="100" data-tempo></label>
+      <div class="uzenet" data-uzenet></div>
+    </div>
+  </div>
+</div>
+
+<div class="task"><b>1. feladat:</b> Állíts be egy 8 ütemes hurkot. Ehhez a <code>hurokIndit</code> függvényben a 4-et cseréld 8-ra, és ellenőrizd, hogy a hurok valóban nyolc ütem hosszú-e.</div>
+<div class="task"><b>2. feladat:</b> Ha az automatikus BPM téved, kopogtasd be kézzel a tempót a Tap gombbal. Figyeld meg, hogy az új érték jelenik meg a kijelzőn, és a SYNC ehhez igazodik-e.</div>
+<div class="task"><b>3. feladat (bónusz):</b> Ha a SYNC után a B deck tempója nem egyezik az A-ével, nézd meg a Konzolt. Számold ki kézzel a várt sebességet, és hasonlítsd össze a <code>playbackRate</code> értékével.</div>
+
+<div class="tip"><b>Mi jön a 7. részben?</b> A MIDI-vezérlő: a külső eszköz gombjainak és csúszkáinak összekötése a programmal. Ez a rész a Web MIDI API-ra épül, és megmutatja, hogyan lehet az eseményeket fogadni egy külső hardverről.</div>
+
+<script>
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const decks = [];
+
+  function becsulBpm(adat, sr) {
+    const hop = Math.floor(sr / 100);                 // 100 Hz-es energiasor
+    const hossz = Math.min(adat.length, sr * 60);     // az első 60 másodperc
+    const frames = Math.floor(hossz / hop);
+    const env = new Float32Array(frames);
+    for (let f = 0; f < frames; f++) {
+      let s = 0;
+      for (let i = 0; i < hop; i++) { const v = adat[f * hop + i]; s += v * v; }
+      env[f] = Math.sqrt(s / hop);
+    }
+    const onset = new Float32Array(frames);
+    for (let f = 1; f < frames; f++) onset[f] = Math.max(0, env[f] - env[f - 1]);
+
+    let legjobb = 0, bpm = 120;
+    for (let c = 70; c <= 180; c += 0.5) {
+      const tav = Math.round(6000 / c);
+      let osszeg = 0;
+      for (let f = 0; f + tav < frames; f++) osszeg += onset[f] * onset[f + tav];
+      if (osszeg > legjobb) { legjobb = osszeg; bpm = c; }
+    }
+    while (bpm < 80) bpm *= 2;
+    while (bpm > 160) bpm /= 2;
+    return bpm;
+  }
+
+  function effektiv(d) {
+    return d.alapBpm ? d.alapBpm * d.zene.playbackRate : null;
+  }
+
+  function letrehozDeck(elem) {
+    const zene = elem.querySelector("[data-zene]");
+    const fajl = elem.querySelector("[data-fajl]");
+    const bpmKijelzo = elem.querySelector("[data-bpm]");
+    const play = elem.querySelector("[data-play]");
+    const tap = elem.querySelector("[data-tap]");
+    const loop = elem.querySelector("[data-loop]");
+    const tempo = elem.querySelector("[data-tempo]");
+    const uzenet = elem.querySelector("[data-uzenet]");
+    const sync = elem.querySelector("[data-sync]");
+
+    const d = {
+      zene, alapBpm: null, tapok: [],
+      hurok: false, hurokKezdet: 0, hurokVeg: 0, sync, bpmKijelzo, uzenet
+    };
+
+    fajl.addEventListener("change", async () => {
+      const f = fajl.files[0];
+      if (!f) return;
+      zene.src = URL.createObjectURL(f);
+      d.alapBpm = null;
+      uzenet.textContent = "Elemzés…";
+      const buf = await ctx.decodeAudioData(await f.arrayBuffer());
+      d.alapBpm = becsulBpm(buf.getChannelData(0), buf.sampleRate);
+      uzenet.textContent = "Kész";
+    });
+
+    play.addEventListener("click", () => {
+      ctx.resume();
+      if (!zene.src) { uzenet.textContent = "Előbb tölts be egy dalt!"; return; }
+      if (zene.paused) zene.play(); else zene.pause();
+    });
+
+    tap.addEventListener("click", () => {
+      const most = performance.now();
+      d.tapok.push(most);
+      while (d.tapok.length && most - d.tapok[0] > 3000) d.tapok.shift();
+      if (d.tapok.length < 2) { uzenet.textContent = "Koppints tovább!"; return; }
+      let osszeg = 0;
+      for (let i = 1; i < d.tapok.length; i++) osszeg += d.tapok[i] - d.tapok[i - 1];
+      const atlag = osszeg / (d.tapok.length - 1);
+      const hallott = 60000 / atlag;
+      d.alapBpm = hallott / zene.playbackRate;
+      uzenet.textContent = "Tap: " + hallott.toFixed(1);
+    });
+
+    loop.addEventListener("click", () => {
+      if (!zene.src) { uzenet.textContent = "Előbb tölts be egy dalt!"; return; }
+      if (d.hurok) { d.hurok = false; uzenet.textContent = "Loop ki"; return; }
+      const beat = 60 / (effektiv(d) || 120);
+      d.hurokKezdet = zene.currentTime;
+      d.hurokVeg = d.hurokKezdet + 4 * beat;
+      d.hurok = true;
+      uzenet.textContent = "Loop be (4 ütem)";
+    });
+
+    tempo.addEventListener("input", () => {
+      zene.playbackRate = tempo.value / 100;
+    });
+
+    if (sync) {
+      sync.addEventListener("click", () => {
+        const a = decks[0];
+        const cel = effektiv(a);
+        if (!cel || !d.alapBpm) { uzenet.textContent = "Mindkét decknek kell tempó!"; return; }
+        zene.playbackRate = cel / d.alapBpm;
+        tempo.value = Math.round(zene.playbackRate * 100);
+        uzenet.textContent = "Szinkronban az A-val";
+      });
+    }
+
+    return d;
+  }
+
+  document.querySelectorAll("[data-deck]").forEach(elem => decks.push(letrehozDeck(elem)));
+
+  function frissit() {
+    decks.forEach(d => {
+      const e = effektiv(d);
+      d.bpmKijelzo.textContent = e ? e.toFixed(1) : "--.-";
+      if (d.hurok && !d.zene.paused && d.zene.currentTime >= d.hurokVeg) {
+        d.zene.currentTime = d.hurokKezdet;
+      }
+    });
+    requestAnimationFrame(frissit);
+  }
+  requestAnimationFrame(frissit);
+</script>
+
+</body>
+</html>

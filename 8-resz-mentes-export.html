@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JavaScript, 8. rész: mentés, sor és export</title>
+<style>
+  body{font-family:system-ui,"Segoe UI",Roboto,sans-serif; line-height:1.6; max-width:760px; margin:0 auto; padding:20px 16px 60px; color:#2b1f36; background:#fff8fc}
+  h1{color:#e0457f; margin-bottom:4px}
+  h2{color:#7a4fd6; margin-top:40px; border-bottom:2px solid #f0d6ea; padding-bottom:4px}
+  h3{margin-top:24px}
+  pre{background:#241a2e; color:#f8eefc; padding:14px; border-radius:12px; overflow-x:auto; font-size:14px}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace}
+  p code, li code{background:#f3e6f7; padding:1px 5px; border-radius:6px; font-size:0.95em}
+  .tip{background:#eaf9f3; border-left:5px solid #2fb98c; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .task{background:#fff3d6; border-left:5px solid #f5b600; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .warn{background:#ffe9ee; border-left:5px solid #e0457f; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .toc li{margin:4px 0}
+  .demo{border:2px solid #f0d6ea; border-radius:14px; padding:14px; margin:14px 0; background:#fff; display:grid; gap:12px}
+  .gombok{display:flex; gap:6px; flex-wrap:wrap}
+  button, a.gomb{font:inherit; border:0; border-radius:999px; padding:8px 12px; background:#ff6fb1; color:#fff; cursor:pointer; font-weight:700; text-decoration:none; display:inline-block}
+  button.ghost{background:#fff; color:#2b1f36; border:2px solid #f0d6ea}
+  .naplo{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:14px; background:#f3f6ff; border-radius:8px; padding:8px 10px; min-height:2.4em}
+  ol.sor{background:#fff; border:1px solid #f0d6ea; border-radius:10px; padding:10px 10px 10px 36px; margin:0}
+  ol.sor li{padding:4px 0; display:flex; justify-content:space-between; gap:8px; align-items:center}
+</style>
+</head>
+<body>
+
+<h1>Mentés, sor és export</h1>
+<p><b>8. rész a sorozatból.</b> Az utolsó részben a program „emlékezetét” építjük meg: a zenéket elmentjük a böngészőbe, a lejátszási sort (queue) kezeljük, a keverést pedig WAV vagy MP3 fájlba írjuk ki. A végén röviden azt is megnézzük, hogyan lesz a programból telefonos, offline alkalmazás.</p>
+
+<h2>Tartalomjegyzék</h2>
+<ol class="toc">
+  <li>Mit hová mentünk? localStorage és IndexedDB</li>
+  <li>Fájl mentése az IndexedDB-be</li>
+  <li>A lejátszási sor (queue): NEXT és AUTO</li>
+  <li>Hang előállítása és WAV export</li>
+  <li>MP3 export a lamejs könyvtárral</li>
+  <li>Felvétel: MediaRecorder</li>
+  <li>Offline alkalmazás: manifest és service worker</li>
+  <li>Teljes példa és feladatok</li>
+</ol>
+
+<h2>1. Mit hová mentünk?</h2>
+<p>A böngészőben kétféle tárolás van, és más-más célra jó:</p>
+<table style="width:100%; border-collapse:collapse; margin:12px 0">
+  <tr><th style="text-align:left; border:1px solid #f0d6ea; padding:6px; background:#fbeef7">Tárolás</th><th style="text-align:left; border:1px solid #f0d6ea; padding:6px; background:#fbeef7">Mire jó</th><th style="text-align:left; border:1px solid #f0d6ea; padding:6px; background:#fbeef7">Korlát</th></tr>
+  <tr><td style="border:1px solid #f0d6ea; padding:6px">localStorage</td><td style="border:1px solid #f0d6ea; padding:6px">Kis szöveges adat: hot cue pontok, beállítások, kötések</td><td style="border:1px solid #f0d6ea; padding:6px">Kb. 5 MB, csak szöveg (JSON)</td></tr>
+  <tr><td style="border:1px solid #f0d6ea; padding:6px">IndexedDB</td><td style="border:1px solid #f0d6ea; padding:6px">Nagy adat: a zenei fájlok maguk, a könyvtár</td><td style="border:1px solid #f0d6ea; padding:6px">Nagy méret, de aszinkron (várni kell rá)</td></tr>
+</table>
+<div class="tip"><b>Szabály:</b> a zenei fájlt soha ne a localStorage-ba tedd. Oda csak kicsi szöveg fér, és a fájl ott sérül vagy nem fér el.</div>
+
+<h2>2. Fájl mentése az IndexedDB-be</h2>
+<p>Az IndexedDB egy beépített adatbázis a böngészőben. Ebbe bele lehet tenni a <code>File</code> objektumot is, így a zene a következő megnyitáskor is ott lesz. Az adatbázis megnyitása aszinkron, ezért <code>Promise</code>-t és <code>async</code>/<code>await</code>-et használunk:</p>
+<pre><code>function dbMegnyitas() {
+  return new Promise((ok, hiba) =&gt; {
+    const keres = indexedDB.open("partyDeck", 1);
+    keres.onupgradeneeded = () =&gt; {
+      // az első megnyitáskor létrehozzuk a "tracks" táblát
+      keres.result.createObjectStore("tracks", { keyPath: "id", autoIncrement: true });
+    };
+    keres.onsuccess = () =&gt; ok(keres.result);
+    keres.onerror = () =&gt; hiba(keres.error);
+  });
+}
+
+async function fajlMentese(fajl) {
+  const db = await dbMegnyitas();
+  return new Promise((ok, hiba) =&gt; {
+    const tranzakcio = db.transaction("tracks", "readwrite");
+    tranzakcio.objectStore("tracks").add({ nev: fajl.name, meret: fajl.size, fajl: fajl });
+    tranzakcio.oncomplete = () =&gt; ok();
+    tranzakcio.onerror = () =&gt; hiba(tranzakcio.error);
+  });
+}</code></pre>
+<p>Az olvasás ugyanígy működik, csak <code>readonly</code> tranzakcióval, és a <code>getAll()</code> hívással az összes sort lekérjük.</p>
+
+<div class="warn"><b>Gyakori hiba:</b> ha az IndexedDB-hez új táblát adsz, a <code>indexedDB.open</code> verziószámát növelni kell (1-ről 2-re), különben az <code>onupgradeneeded</code> nem fut le.</div>
+
+<h2>3. A lejátszási sor (queue): NEXT és AUTO</h2>
+<p>A lejátszási sor egy egyszerű tömb. A dalokat a végére tesszük, a NEXT pedig az elsőt veszi ki:</p>
+<pre><code>const sor = [];
+
+function sorbaTesz(dal) {
+  sor.push(dal);            // a tömb végére
+}
+
+function kovetkezo() {
+  if (sor.length === 0) return null;
+  return sor.shift();       // az első elemet kiveszi és visszaadja
+}</code></pre>
+<p>Az AUTO működése: amikor egy dal véget ér, a program automatikusan a következőt indítja. Ehhez az <code>ended</code> eseményt figyeljük:</p>
+<pre><code>let auto = true;
+
+zene.addEventListener("ended", () =&gt; {
+  if (auto &amp;&amp; sor.length &gt; 0) {
+    betoltEsIndit(kovetkezo());
+  }
+});</code></pre>
+
+<div class="tip"><b>Tipp:</b> a sort is elmentheted a localStorage-ba, de csak a dalok neveit és a fájlok azonosítóit. Maga a fájl az IndexedDB-ben marad, és az azonosító alapján újra betöltheted.</div>
+
+<h2>4. Hang előállítása és WAV export</h2>
+<p>A hangot számok sorozataként tároljuk. Egy hangérték -1 és 1 között van, a mintavételi frekvencia (például 44 100) azt adja meg, másodpercenként hány szám van. A WAV egy egyszerű formátum: egy 44 bájtos fejléc után a számok következnek, 16 bites egész formában.</p>
+<pre><code>function wavKeszit(adat, mintavetel) {
+  const hossz = adat.length;
+  const buffer = new ArrayBuffer(44 + hossz * 2);
+  const view = new DataView(buffer);
+
+  function iras(poz, szoveg) {
+    for (let i = 0; i &lt; szoveg.length; i++) {
+      view.setUint8(poz + i, szoveg.charCodeAt(i));
+    }
+  }
+
+  iras(0, "RIFF");
+  view.setUint32(4, 36 + hossz * 2, true);
+  iras(8, "WAVE");
+  iras(12, "fmt ");
+  view.setUint32(16, 16, true);            // a fejléc hossza
+  view.setUint16(20, 1, true);             // 1 = nyers hang
+  view.setUint16(22, 1, true);             // 1 csatorna (mono)
+  view.setUint32(24, mintavetel, true);    // mintavételi frekvencia
+  view.setUint32(28, mintavetel * 2, true);// bájt/másodperc
+  view.setUint16(32, 2, true);             // blokk mérete
+  view.setUint16(34, 16, true);            // bit/minta
+  iras(36, "data");
+  view.setUint32(40, hossz * 2, true);
+
+  for (let i = 0; i &lt; hossz; i++) {
+    const s = Math.max(-1, Math.min(1, adat[i]));
+    view.setInt16(44 + i * 2, s &lt; 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  return new Blob([buffer], { type: "audio/wav" });
+}</code></pre>
+<p>A <code>true</code> az utolsó paraméter a kis-endian sorrend. A WAV fájl ezt várja, ezért kell kiírni.</p>
+
+<h3>Letöltés</h3>
+<pre><code>const url = URL.createObjectURL(wavKeszit(adat, 44100));
+const a = document.createElement("a");
+a.href = url;
+a.download = "keveres.wav";   // a letöltendő fájl neve
+a.click();
+URL.revokeObjectURL(url);     // felszabadítjuk a memóriát</code></pre>
+
+<h2>5. MP3 export a lamejs könyvtárral</h2>
+<p>Az MP3 tömörített formátum, ehhez egy kódolóra van szükség. A <code>lamejs</code> könyvtár ezt a LAME kódolót teszi elérhetővé a böngészőben. A könyvtár betöltése után így működik:</p>
+<pre><code>function mp3Keszit(adat, mintavetel) {
+  const enc = new lamejs.Mp3Encoder(1, mintavetel, 192);   // 1 csatorna, 192 kbps
+  const minta = new Int16Array(adat.length);
+  for (let i = 0; i &lt; adat.length; i++) {
+    const s = Math.max(-1, Math.min(1, adat[i]));
+    minta[i] = s * 0x7FFF;
+  }
+
+  const darabok = [];
+  const blokk = 1152;                       // az MP3 kódoló ennyi mintánként dolgozik
+  for (let i = 0; i &lt; minta.length; i += blokk) {
+    const kodolt = enc.encodeBuffer(minta.subarray(i, i + blokk));
+    if (kodolt.length &gt; 0) darabok.push(kodolt);
+  }
+  const vege = enc.flush();                 // a maradék kiírása
+  if (vege.length &gt; 0) darabok.push(vege);
+
+  return new Blob(darabok, { type: "audio/mpeg" });
+}</code></pre>
+<div class="tip"><b>Miért 1152?</b> Az MP3 kódoló egy-egy kötegben 1152 mintát dolgoz fel. Ha ennél több adatot adsz neki egyszerre, a kódoló nem működik megfelelően, ezért darabokra bontjuk.</div>
+
+<h2>6. Felvétel: MediaRecorder</h2>
+<p>Ha a keverést élőben szeretnéd rögzíteni, a <code>MediaRecorder</code> a jó eszköz. A hangot először egy <code>createMediaStreamDestination</code> csomópontba kell küldeni, mert a rögzítő adatfolyamot (stream) vár:</p>
+<pre><code>const cel = ctx.createMediaStreamDestination();
+masterGain.connect(cel);                    // a fő hangerő kimenete a rögzítőhöz megy
+
+const felvevo = new MediaRecorder(cel.stream);
+const darabok = [];
+felvevo.ondataavailable = (e) =&gt; darabok.push(e.data);
+felvevo.onstop = () =&gt; {
+  const felvetel = new Blob(darabok, { type: felvevo.mimeType });
+  // ezt a Blobot letölthetjük vagy elmenthetjük az IndexedDB-be
+};
+
+felvevo.start();    // indítás
+// később: felvevo.stop();</code></pre>
+
+<h2>7. Offline alkalmazás: manifest és service worker</h2>
+<p>Az alkalmazás telefonon úgy működik, mint egy normál app: van ikonja, teljes képernyőn fut, és internet nélkül is megnyílik. Ehhez három dolog kell:</p>
+<ul>
+  <li><b>manifest.webmanifest</b>: leírja a nevet, az ikont és a megjelenítési módot (<code>"display": "standalone"</code>).</li>
+  <li><b>sw.js (service worker)</b>: a háttérben fut, és eltárolja a program fájljait a gyorsítótárba (cache).</li>
+  <li><b>Regisztráció</b>: a fő oldal jelzi a böngészőnek, hogy ezt a fájlt használja.</li>
+</ul>
+<pre><code>// a fő oldalon
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+
+// sw.js
+const CACHE = "party-dj-v2";
+
+self.addEventListener("install", (e) =&gt; {
+  e.waitUntil(
+    caches.open(CACHE).then((c) =&gt;
+      c.addAll(["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"])
+    )
+  );
+});
+
+self.addEventListener("fetch", (e) =&gt; {
+  e.respondWith(
+    caches.match(e.request).then((v) =&gt; v || fetch(e.request))
+  );
+});</code></pre>
+<div class="warn"><b>Két gyakori hiba:</b>
+<ul>
+  <li>A service worker csak HTTPS-en (vagy helyi gépen) működik. Ezért kell a GitHub Pages címe.</li>
+  <li>Ha módosítod a fájlokat, de a <code>CACHE</code> nevét (például <code>party-dj-v2</code>-ről <code>party-dj-v3</code>-ra) nem változtatod, a telefon a régi, gyorsítótárazott verziót mutatja.</li>
+</ul></div>
+
+<h2>8. Teljes példa és feladatok</h2>
+<p>Az alábbi demóban egy lejátszási sort kezelhetsz. A <b>Sorba adás</b> gomb új, rövid hangot tesz a sorba, a <b>NEXT</b> az elsőt kiveszi, a sor pedig a böngészőben megmarad. A <b>WAV letöltés</b> a kiválasztott hangot WAV fájlba írja.</p>
+
+<div class="demo">
+  <div class="gombok">
+    <button id="sorba">Sorba adás</button>
+    <button id="next" class="ghost">NEXT</button>
+    <button id="wav" class="ghost">WAV letöltés</button>
+    <button id="torolSor" class="ghost">Sor törlése</button>
+  </div>
+  <div>Lejátszás most: <b id="most">–</b></div>
+  <ol class="sor" id="sor"></ol>
+  <div class="naplo" id="naplo">Kész.</div>
+</div>
+
+<script>
+  const sorEl = document.querySelector("#sor");
+  const mostEl = document.querySelector("#most");
+  const naplo = document.querySelector("#naplo");
+  const MINTA = 44100;
+
+  let sor = [];
+  try {
+    sor = JSON.parse(localStorage.getItem("demoSor") || "[]");
+  } catch (e) {
+    sor = [];
+  }
+
+  function mentes() {
+    try {
+      localStorage.setItem("demoSor", JSON.stringify(sor));
+    } catch (e) {
+      naplo.textContent = "A sor nem menthető ebben a böngészőben.";
+    }
+  }
+
+  function kiir() {
+    sorEl.innerHTML = "";
+    sor.forEach((dal, i) => {
+      const li = document.createElement("li");
+      li.textContent = (i + 1) + ". " + dal.nev;
+      sorEl.appendChild(li);
+    });
+    if (sor.length === 0) {
+      const li = document.createElement("li");
+      li.textContent = "A sor üres.";
+      sorEl.appendChild(li);
+    }
+  }
+
+  function hangJel(hz, masodperc) {
+    const n = Math.floor(masodperc * MINTA);
+    const adat = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      adat[i] = 0.5 * Math.sin(2 * Math.PI * hz * i / MINTA);
+    }
+    return adat;
+  }
+
+  function wavKeszit(adat, mintavetel) {
+    const hossz = adat.length;
+    const buffer = new ArrayBuffer(44 + hossz * 2);
+    const view = new DataView(buffer);
+    function iras(poz, szoveg) {
+      for (let i = 0; i < szoveg.length; i++) view.setUint8(poz + i, szoveg.charCodeAt(i));
+    }
+    iras(0, "RIFF");
+    view.setUint32(4, 36 + hossz * 2, true);
+    iras(8, "WAVE");
+    iras(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, mintavetel, true);
+    view.setUint32(28, mintavetel * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    iras(36, "data");
+    view.setUint32(40, hossz * 2, true);
+    for (let i = 0; i < hossz; i++) {
+      const s = Math.max(-1, Math.min(1, adat[i]));
+      view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+    return new Blob([buffer], { type: "audio/wav" });
+  }
+
+  let szamlalo = 0;
+
+  document.querySelector("#sorba").addEventListener("click", () => {
+    szamlalo++;
+    const hz = 220 + szamlalo * 55;
+    sor.push({ nev: "Dal " + szamlalo + " (" + hz + " Hz)", hz: hz });
+    mentes();
+    kiir();
+    naplo.textContent = "Hozzáadva a sorhoz.";
+  });
+
+  document.querySelector("#next").addEventListener("click", () => {
+    if (sor.length === 0) {
+      naplo.textContent = "A sor üres, nincs következő dal.";
+      mostEl.textContent = "–";
+      return;
+    }
+    const dal = sor.shift();
+    mostEl.textContent = dal.nev;
+    mentes();
+    kiir();
+    naplo.textContent = "NEXT: a következő dal indult.";
+  });
+
+  document.querySelector("#torolSor").addEventListener("click", () => {
+    sor = [];
+    mentes();
+    kiir();
+    naplo.textContent = "A sor törölve.";
+  });
+
+  document.querySelector("#wav").addEventListener("click", () => {
+    const hz = sor.length ? sor[0].hz : 440;
+    const adat = hangJel(hz, 2);
+    const url = URL.createObjectURL(wavKeszit(adat, MINTA));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "keveres.wav";
+    a.click();
+    URL.revokeObjectURL(url);
+    naplo.textContent = "A WAV fájl letöltése elindult (" + hz + " Hz, 2 mp).";
+  });
+
+  kiir();
+</script>
+
+<div class="task"><b>1. feladat:</b> Adj a sor minden eleméhez egy „×” gombot, amely törli az adott dalt. Ehhez a <code>kiir()</code> függvényben hozz létre egy gombot, és a kattintásnál a <code>sor.splice</code> metódussal távolítsd el az elemet.</div>
+<div class="task"><b>2. feladat:</b> Írj egy AUTO kapcsolót: ha be van kapcsolva, a NEXT akkor is fusson le, amikor egy dal véget ér. Ehhez egy <code>auto</code> változót használj, és figyeld az <code>ended</code> eseményt.</div>
+<div class="task"><b>3. feladat (bónusz):</b> Ha módosítod a <code>sw.js</code> fájlt, a telefon mégis a régit mutatja. Magyarázd el, miért, és mit kell változtatni, hogy a frissítés megérkezzen.</div>
+
+<div class="tip"><b>Összefoglalás a sorozatról.</b> Most már van egy teljes, egyedi DJ-programod: a pult és a két deck (1–2. rész), a keverés és effektek (4. rész), a hullám és a hangerő-mérő (5. rész), a tempó (6. rész), a MIDI-vezérlő és a billentyűk (7. rész), és most a mentés, a sor, az export és az offline telepítés. Ha bármelyik részt újra átnézed, a kódot mindig a saját szavaiddal írd le. Így lesz igazán a tiéd.</div>
+
+</body>
+</html>

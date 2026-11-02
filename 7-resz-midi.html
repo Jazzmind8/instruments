@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JavaScript, 7. rész: MIDI és billentyűk</title>
+<style>
+  body{font-family:system-ui,"Segoe UI",Roboto,sans-serif; line-height:1.6; max-width:760px; margin:0 auto; padding:20px 16px 60px; color:#2b1f36; background:#fff8fc}
+  h1{color:#e0457f; margin-bottom:4px}
+  h2{color:#7a4fd6; margin-top:40px; border-bottom:2px solid #f0d6ea; padding-bottom:4px}
+  h3{margin-top:24px}
+  pre{background:#241a2e; color:#f8eefc; padding:14px; border-radius:12px; overflow-x:auto; font-size:14px}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace}
+  p code, li code{background:#f3e6f7; padding:1px 5px; border-radius:6px; font-size:0.95em}
+  .tip{background:#eaf9f3; border-left:5px solid #2fb98c; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .task{background:#fff3d6; border-left:5px solid #f5b600; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .warn{background:#ffe9ee; border-left:5px solid #e0457f; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .toc li{margin:4px 0}
+  .demo{border:2px solid #f0d6ea; border-radius:14px; padding:14px; margin:14px 0; background:#fff; display:grid; gap:12px}
+  .gombok{display:flex; gap:6px; flex-wrap:wrap}
+  button{font:inherit; border:0; border-radius:999px; padding:8px 12px; background:#ff6fb1; color:#fff; cursor:pointer; font-weight:700}
+  button.ghost{background:#fff; color:#2b1f36; border:2px solid #f0d6ea}
+  .naplo{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:14px; background:#f3f6ff; border-radius:8px; padding:8px 10px; min-height:2.4em}
+  kbd{background:#fff; border:1px solid #d8c6e6; border-bottom-width:3px; border-radius:6px; padding:1px 6px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px}
+  table{border-collapse:collapse; width:100%; margin:12px 0}
+  td,th{border:1px solid #f0d6ea; padding:6px 8px; text-align:left; font-size:14px}
+  th{background:#fbeef7}
+</style>
+</head>
+<body>
+
+<h1>MIDI és billentyűk</h1>
+<p><b>7. rész a sorozatból.</b> Eddig a pultot egérrel és billentyűzettel kezelted. Ebben a részben megtanulod, hogyan fogadja a böngésző a külső DJ-vezérlő (például egy Numark) üzeneteit, hogyan kötsz gombot a programod funkciójához (ezt hívjuk <i>MIDI learn</i>-nek), és hogyan kezeld a billentyűzetet úgy, hogy az ne zavarjon más beviteli mezőket.</p>
+
+<h2>Tartalomjegyzék</h2>
+<ol class="toc">
+  <li>Mi az a MIDI?</li>
+  <li>A böngésző és a MIDI: a Web MIDI API</li>
+  <li>Az üzenet felbontása</li>
+  <li>Értékek átalakítása: 0–127 és 0–1</li>
+  <li>MIDI learn: a kötések tárolása</li>
+  <li>Billentyűzet: a keydown esemény</li>
+  <li>Teljes példa és feladatok</li>
+</ol>
+
+<h2>1. Mi az a MIDI?</h2>
+<p>A MIDI (Musical Instrument Digital Interface) egy régi, szabványos nyelv a zenei eszközök között. A vezérlő nem hangot küld, hanem üzeneteket: „a 3-as gombot megnyomták”, vagy „a csúszkát 90-es értékre állították”.</p>
+<p>Egy üzenet mindig három számból áll:</p>
+<table>
+  <tr><th>Rész</th><th>Jelentés</th><th>Példa</th></tr>
+  <tr><td>Státusz</td><td>Mi történt, és melyik csatornán</td><td><code>0xB0</code> = csúszka/forgatógomb (CC), <code>0x90</code> = gomb lenyomása (Note On)</td></tr>
+  <tr><td>Adat 1</td><td>Melyik gomb vagy csúszka</td><td>pl. 7-es szám a hangerő-csúszka</td></tr>
+  <tr><td>Adat 2</td><td>Mekkora az érték</td><td>0 és 127 között</td></tr>
+</table>
+<p>A státusz bájt alsó 4 bitje a csatorna száma (0–15), a felső 4 bit a típus. Ezért a típust így szedjük ki:</p>
+<pre><code>const tipus = statusz &amp; 0xF0;        // a felső 4 bit: a típus
+const csatorna = (statusz &amp; 0x0F) + 1; // az alsó 4 bit: a csatorna (1–16)</code></pre>
+<div class="tip"><b>Mit jelent az &amp;?</b> Ez a bitenkénti „és” művelet. Azt használjuk, hogy egy számból csak a kívánt biteket tartsuk meg. A kezdőknek elég annyit tudni, hogy a <code>statusz &amp; 0xF0</code> eltünteti a csatornaszámot.</div>
+
+<h2>2. A böngésző és a MIDI: a Web MIDI API</h2>
+<p>A böngészőben a MIDI-eszközöket a <code>navigator.requestMIDIAccess()</code> kéri le. A böngésző ilyenkor engedélyt kér a felhasználótól:</p>
+<pre><code>async function midiIndit() {
+  const hozzaferes = await navigator.requestMIDIAccess();
+
+  hozzaferes.inputs.forEach(eszkoz => {
+    eszkoz.onmidimessage = midiKezel;   // minden üzenetnél ez a függvény fut
+  });
+  console.log("MIDI kész");
+}</code></pre>
+<div class="warn"><b>Fontos korlátok:</b> a Web MIDI csak HTTPS-en (vagy helyi gépen) működik. Chrome, Edge és Android Chrome támogatja, az iPhone Safari nem. Ha az alkalmazást telefonon, iPhone-on használod, a MIDI-vezérlő nem fog működni, ezt érdemes a felhasználóknak előre megírni.</div>
+
+<h2>3. Az üzenet felbontása</h2>
+<p>A <code>onmidimessage</code> minden üzenetnél egy eseményt ad át. Az üzenet adatai az <code>esemeny.data</code> listában vannak:</p>
+<pre><code>function midiKezel(esemeny) {
+  const [statusz, adat1, adat2] = esemeny.data;   // a három szám
+  const tipus = statusz &amp; 0xF0;
+
+  if (tipus === 0xB0) {
+    console.log("Csúszka", adat1, "értéke:", adat2);
+  }
+  if (tipus === 0x90 &amp;&amp; adat2 &gt; 0) {
+    console.log("Gomb", adat1, "lenyomva");
+  }
+}</code></pre>
+<p>Vegyük észre: a Note On üzenetnek a 2. adata (a sebesség) is lehet 0. Ez azt jelenti, hogy a gombot elengedték. Ezért a <code>adat2 &gt; 0</code> ellenőrzés fontos.</p>
+
+<h2>4. Értékek átalakítása: 0–127 és 0–1</h2>
+<p>A MIDI-csúszkák értéke 0 és 127 közötti egész szám. A programodban viszont a hangerő általában 0 és 1 közötti tört. Ezért át kell alakítani:</p>
+<pre><code>const normal = adat2 / 127;          // 0 → 0, 127 → 1, 64 → kb. 0,5
+const hangero = Math.min(1, Math.max(0, normal));  // biztosan 0 és 1 között marad</code></pre>
+<p>A <code>Math.max</code> és <code>Math.min</code> az értéket a határok közé szorítja. Így hiba esetén sem lesz túl nagy vagy túl kicsi a hangerő.</p>
+
+<h2>5. MIDI learn: a kötések tárolása</h2>
+<p>A MIDI learn azt jelenti, hogy a felhasználó megnyom egy gombot a programban, majd a vezérlőn is megnyom egy gombot, és a program megjegyzi a kettő kapcsolatát. A kötéseket egy objektumban tároljuk. A kulcs a típusból és az adat1-ből áll:</p>
+<pre><code>let tanul = null;     // ha nem null, a következő üzenetet ehhez kötjük
+let kotesek = {};     // pl. { "176-7": "fader", "144-60": "play" }
+
+function kulcs(tipus, adat1) {
+  return tipus + "-" + adat1;   // pl. 176-7
+}</code></pre>
+<p>A kötések a böngészőben is megmaradnak, ha a <code>localStorage</code>-ba mentjük. Figyelj arra, hogy ezt a <code>try</code> blokkba tedd, mert egyes böngészőkben a tárolás nem érhető el:</p>
+<pre><code>function kotesekMentese() {
+  try {
+    localStorage.setItem("kotesek", JSON.stringify(kotesek));
+  } catch (e) {
+    console.log("Nem sikerült menteni");
+  }
+}</code></pre>
+<p>A <code>midiKezel</code> függvény így lesz kiegészítve:</p>
+<pre><code>function midiKezel(esemeny) {
+  const [statusz, adat1, adat2] = esemeny.data;
+  const tipus = statusz &amp; 0xF0;
+  const k = kulcs(tipus, adat1);
+
+  if (tanul) {                 // tanulási mód: ezt az üzenetet kötjük hozzá
+    kotesek[k] = tanul;
+    kotesekMentese();
+    tanul = null;
+    return;
+  }
+
+  const cel = kotesek[k];      // melyik funkcióhoz tartozik?
+  if (cel === "fader" &amp;&amp; tipus === 0xB0) {
+    hangeroBeallit(adat2 / 127);
+  }
+  if (cel === "play" &amp;&amp; tipus === 0x90 &amp;&amp; adat2 &gt; 0) {
+    lejatszasKapcsol();
+  }
+}</code></pre>
+
+<div class="tip"><b>Miért jó ez a szerkezet?</b> A program nem tudja előre, melyik gomb melyik vezérlőről jön. A kötések táblázata választja szét a „hardvert” és a „funkciót”. Így ugyanaz a kód bármilyen márkájú vezérlővel működik, csak a kötéseket kell újra tanítani.</div>
+
+<h2>6. Billentyűzet: a keydown esemény</h2>
+<p>A billentyűket a <code>keydown</code> eseménnyel figyeljük. Az <code>e.code</code> a fizikai billentyűt adja meg (például <code>"Space"</code>, <code>"KeyQ"</code>, <code>"ArrowUp"</code>), ez nem függ a billentyűzet nyelvétől:</p>
+<pre><code>document.addEventListener("keydown", (e) =&gt; {
+  // ha éppen szövegmezőbe írunk, ne reagáljunk a billentyűkre
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+
+  // a lenyomva tartott billentyű ismétléseit kihagyjuk
+  if (e.repeat) return;
+
+  if (e.code === "Space") {
+    e.preventDefault();        // ne görgessen az oldal
+    lejatszasKapcsol();
+  }
+  if (e.code === "ArrowUp") {
+    hangeroBeallit(hangero + 0.05);
+  }
+});</code></pre>
+<div class="warn"><b>Gyakori hiba:</b> ha nem nézed meg az <code>e.repeat</code>-et, a lenyomva tartott billentyű sok eseményt küld, és a program hibásan sokszor fut le. Mindig tedd be ezt az ellenőrzést a billentyűkezelésbe.</div>
+
+<h2>7. Teljes példa és feladatok</h2>
+<p>Az alábbi demóban nincs szükség valódi vezérlőre. A szimulált gombokkal ugyanazt az üzenetet küldöd a programnak, mint egy Numark. A demóban két MIDI-kötést tanulhatsz: egy csúszkát és egy lejátszás gombot. A billentyűzeten a <kbd>Szóköz</kbd> lejátszást vált, a <kbd>↑</kbd> és <kbd>↓</kbd> pedig a hangerőt állítja.</p>
+
+<div class="demo">
+  <div>
+    <label>Hangerő: <input type="range" min="0" max="127" value="64" id="fader"></label>
+    <span id="ertek">64</span>
+  </div>
+  <div>Lejátszás: <b id="allapot">áll</b> &nbsp; <button id="play" class="ghost">Lejátszás</button></div>
+  <div class="gombok">
+    <button id="tanulFader">Fader tanulása</button>
+    <button id="tanulPlay">Play tanulása</button>
+    <button id="szimFader" class="ghost">Szimulált csúszka mozgás</button>
+    <button id="szimPlay" class="ghost">Szimulált Play gomb</button>
+    <button id="torol" class="ghost">Kötések törlése</button>
+  </div>
+  <div>Kötések: <span id="kotesKijelzo">nincs</span></div>
+  <div class="naplo" id="naplo">Kész.</div>
+</div>
+
+<script>
+  const fader = document.querySelector("#fader");
+  const ertek = document.querySelector("#ertek");
+  const allapot = document.querySelector("#allapot");
+  const playGomb = document.querySelector("#play");
+  const naplo = document.querySelector("#naplo");
+  const kotesKijelzo = document.querySelector("#kotesKijelzo");
+
+  let tanul = null;
+  let szol = false;
+  let kotesek = {};
+
+  try {
+    kotesek = JSON.parse(localStorage.getItem("demoKotesek") || "{}");
+  } catch (e) {
+    kotesek = {};
+  }
+
+  function kotesekKiir() {
+    const sorok = Object.entries(kotesek).map(([k, cel]) => k + " → " + cel);
+    kotesKijelzo.textContent = sorok.length ? sorok.join(", ") : "nincs";
+  }
+
+  function kotesekMentese() {
+    try {
+      localStorage.setItem("demoKotesek", JSON.stringify(kotesek));
+    } catch (e) {
+      naplo.textContent = "A kötések nem menthetők ebben a böngészőben.";
+    }
+    kotesekKiir();
+  }
+
+  function kulcs(tipus, adat1) {
+    return tipus + "-" + adat1;
+  }
+
+  function hangeroBeallit(szam) {
+    const tartomany = Math.min(127, Math.max(0, Math.round(szam * 127)));
+    fader.value = tartomany;
+    ertek.textContent = tartomany;
+  }
+
+  function lejatszasKapcsol() {
+    szol = !szol;
+    allapot.textContent = szol ? "szól" : "áll";
+    playGomb.textContent = szol ? "Szünet" : "Lejátszás";
+  }
+
+  function midiKezel(statusz, adat1, adat2) {
+    const tipus = statusz & 0xF0;
+    const k = kulcs(tipus, adat1);
+
+    if (tanul) {
+      kotesek[k] = tanul;
+      tanul = null;
+      kotesekMentese();
+      naplo.textContent = "Kötve: " + k;
+      return;
+    }
+
+    const cel = kotesek[k];
+    if (!cel) {
+      naplo.textContent = "Nincs kötés ehhez: " + k;
+      return;
+    }
+    if (cel === "fader" && tipus === 0xB0) {
+      hangeroBeallit(adat2 / 127);
+      naplo.textContent = "Csúszka: " + adat2;
+    }
+    if (cel === "play" && tipus === 0x90 && adat2 > 0) {
+      lejatszasKapcsol();
+      naplo.textContent = "Play gomb megnyomva";
+    }
+  }
+
+  // Valódi MIDI-vezérlő esetén ez a rész kapcsolja be a figyelést
+  async function midiIndit() {
+    if (!navigator.requestMIDIAccess) {
+      naplo.textContent = "Ez a böngésző nem támogatja a MIDI-t (pl. iPhone Safari).";
+      return;
+    }
+    try {
+      const hozzaferes = await navigator.requestMIDIAccess();
+      hozzaferes.inputs.forEach(eszkoz => {
+        eszkoz.onmidimessage = (e) => midiKezel(e.data[0], e.data[1], e.data[2]);
+      });
+    } catch (e) {
+      naplo.textContent = "A MIDI-engedélyt nem adtad meg, a szimulált gombok működnek.";
+    }
+  }
+  midiIndit();
+
+  fader.addEventListener("input", () => {
+    ertek.textContent = fader.value;
+  });
+
+  playGomb.addEventListener("click", lejatszasKapcsol);
+
+  document.querySelector("#tanulFader").addEventListener("click", () => {
+    tanul = "fader";
+    naplo.textContent = "Fader tanulása: mozgasd meg a csúszkát a vezérlőn...";
+  });
+  document.querySelector("#tanulPlay").addEventListener("click", () => {
+    tanul = "play";
+    naplo.textContent = "Play tanulása: nyomd meg a gombot a vezérlőn...";
+  });
+  document.querySelector("#szimFader").addEventListener("click", () => {
+    midiKezel(0xB0, 7, Math.floor(Math.random() * 128));
+  });
+  document.querySelector("#szimPlay").addEventListener("click", () => {
+    midiKezel(0x90, 60, 100);
+  });
+  document.querySelector("#torol").addEventListener("click", () => {
+    kotesek = {};
+    kotesekMentese();
+    naplo.textContent = "A kötések törölve.";
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+    if (e.repeat) return;
+    if (e.code === "Space") {
+      e.preventDefault();
+      lejatszasKapcsol();
+    }
+    if (e.code === "ArrowUp") {
+      e.preventDefault();
+      hangeroBeallit(Number(fader.value) / 127 + 0.05);
+    }
+    if (e.code === "ArrowDown") {
+      e.preventDefault();
+      hangeroBeallit(Number(fader.value) / 127 - 0.05);
+    }
+  });
+
+  kotesekKiir();
+</script>
+
+<div class="task"><b>1. feladat:</b> Adj hozzá egy második csúszkát (például a másik deck hangerejéhez), és tanítsd meg egy új MIDI-kötéssel. Ehhez a <code>kotesek</code>-ben új funkciónevet kell használnod, például <code>"fader2"</code>.</div>
+<div class="task"><b>2. feladat:</b> Adj a billentyűzethez egy új gombot: a <kbd>Shift</kbd> + <kbd>Szóköz</kbd> kombináció a másik deck lejátszását vezérelje. Ehhez az <code>e.shiftKey</code> tulajdonságot ellenőrizd.</div>
+<div class="task"><b>3. feladat (bónusz):</b> Ha a Play gombot kétszer nyomod meg gyorsan, a program kétszer vált. Írj egy rövid ellenőrzést, amely 300 ezredmásodpercen belül a második üzenetet figyelmen kívül hagyja. Ehhez a <code>performance.now()</code> függvényt használd, ahogy a 6. részben.</div>
+
+<div class="tip"><b>Mi jön a 8. részben?</b> A mentés és az export: a lejátszási sor (queue), a számok megőrzése a böngészőben, a WAV és MP3 fájl készítése, és az alkalmazás telepítése telefonra, offline módban.</div>
+
+</body>
+</html>

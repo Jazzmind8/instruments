@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JavaScript, 5. rész: látvány és animáció</title>
+<style>
+  body{font-family:system-ui,"Segoe UI",Roboto,sans-serif; line-height:1.6; max-width:760px; margin:0 auto; padding:20px 16px 60px; color:#2b1f36; background:#fff8fc}
+  h1{color:#e0457f; margin-bottom:4px}
+  h2{color:#7a4fd6; margin-top:40px; border-bottom:2px solid #f0d6ea; padding-bottom:4px}
+  h3{margin-top:24px}
+  pre{background:#241a2e; color:#f8eefc; padding:14px; border-radius:12px; overflow-x:auto; font-size:14px}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace}
+  p code, li code{background:#f3e6f7; padding:1px 5px; border-radius:6px; font-size:0.95em}
+  .tip{background:#eaf9f3; border-left:5px solid #2fb98c; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .task{background:#fff3d6; border-left:5px solid #f5b600; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .warn{background:#ffe9ee; border-left:5px solid #e0457f; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .toc li{margin:4px 0}
+  .demo{border:2px solid #f0d6ea; border-radius:14px; padding:16px; margin:14px 0; background:#fff; display:grid; gap:12px; justify-items:center}
+  .lemez{width:180px; height:180px; border-radius:50%; position:relative; will-change:transform;
+    background:repeating-radial-gradient(circle, #2e1b3a 0 1px, #180c21 2px 3px); box-shadow:0 10px 24px rgba(60,15,70,.35)}
+  .kozep{position:absolute; inset:34%; border-radius:50%; background:linear-gradient(135deg,#ff6fb1,#a98bff)}
+  .kozep::after{content:""; position:absolute; top:50%; left:50%; width:10px; height:10px; border-radius:50%; background:#120818; transform:translate(-50%,-50%)}
+  canvas{width:100%; max-width:560px; height:80px; background:#faf5ff; border-radius:12px}
+  .meter{width:100%; max-width:560px; height:14px; background:#f3e8f6; border-radius:999px; overflow:hidden}
+  .meter i{display:block; height:100%; width:0; background:linear-gradient(90deg,#4fe0bd,#ffd23f 70%,#ff6fb1); transition:width .05s linear}
+  .gombok{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
+  button{font:inherit; border:0; border-radius:999px; padding:10px 18px; background:#ff6fb1; color:#fff; cursor:pointer; font-weight:700}
+  input[type=file]{max-width:100%}
+</style>
+</head>
+<body>
+
+<h1>Látvány és animáció</h1>
+<p><b>5. rész a sorozatból.</b> Eddig a hangot irányítottuk. Most azt tanuljuk meg, hogyan lesz a programból látvány: forgó lemez, hullámforma és hangerőmérő. Ezekhez három új eszközt használunk: az animációs ciklust, a <code>canvas</code> rajzvásznat, és az elemzőt, amely a hangból mérőszámot ad.</p>
+
+<h2>Tartalomjegyzék</h2>
+<ol class="toc">
+  <li>Az animációs ciklus: requestAnimationFrame</li>
+  <li>Mozgás időtől függően: a dt</li>
+  <li>Forgó lemez: a CSS transform</li>
+  <li>Rajzolás vászonra: a canvas</li>
+  <li>Hullámforma: a hang csúcsértékei</li>
+  <li>Hangerőmérő: az AnalyserNode</li>
+  <li>Teljes kód és feladatok</li>
+</ol>
+
+<h2>1. Az animációs ciklus: requestAnimationFrame</h2>
+<p>A képernyő másodpercenként általában 60-szor frissül. Ha a JavaScriptben egy függvényt a <code>requestAnimationFrame</code> segítségével hívsz meg, az minden képkockánál lefut. Ez az animáció szíve:</p>
+<pre><code>function frissit() {
+  // itt változtatod a képet
+  requestAnimationFrame(frissit);   // kéri a következő képkockát
+}
+requestAnimationFrame(frissit);     // elindítja</code></pre>
+<p>A függvény végén újra meghívja magát a <code>requestAnimationFrame</code>. Ez így megy végtelenül, amíg az oldal nyitva van.</p>
+
+<div class="tip"><b>Hasonlat:</b> egy filmkocka-sorozat. Minden kocka egy kicsit más, és a gyors egymásutánban látszik a mozgás.</div>
+
+<h2>2. Mozgás időtől függően: a dt</h2>
+<p>Ha minden képkockánál a lemezt például 2 fokkal forgatod, gyorsabb képernyőn gyorsabban forog. Jobb, ha az eltelt időt is figyeled, és az alapján számolsz. Ezt a <code>dt</code> (delta time, időkülönbség) mutatja:</p>
+<pre><code>let utolso = performance.now();
+
+function frissit(most) {
+  const dt = (most - utolso) / 1000;   // másodpercben az eltelt idő
+  utolso = most;
+  // például 90 fok másodpercenként:
+  forgas = forgas + 90 * dt;
+  requestAnimationFrame(frissit);
+}</code></pre>
+<p>A <code>most</code> paramétert a böngésző adja, és ez az aktuális idő ezredmásodpercben. Így a forgás sebessége mindig 90 fok másodpercenként, a képernyő frissítési gyakoriságától függetlenül.</p>
+
+<h2>3. Forgó lemez: a CSS transform</h2>
+<p>A lemez egy <code>div</code>, amely CSS-szel kör alakú. A forgatást a <code>transform</code> tulajdonsággal végezzük, JavaScriptből:</p>
+<pre><code>const lemez = document.querySelector("#lemez");
+lemez.style.transform = "rotate(" + forgas + "deg)";</code></pre>
+<p>A <code>rotate</code> fokokban forgat. A böngésző magától a közepe körül forgatja az elemet.</p>
+<div class="warn"><b>Gyakori hiba:</b> a <code>deg</code> egység kell a szám után, különben a forgatás nem működik.</div>
+
+<h2>4. Rajzolás vászonra: a canvas</h2>
+<p>Ha több ezer pontot vagy vonalat kell kirajzolni, a <code>canvas</code> elem a legjobb. Ez egy üres rajzfelület, amelyre a JavaScriptből rajzolsz:</p>
+<pre><code>&lt;canvas id="hullam" width="600" height="80"&gt;&lt;/canvas&gt;
+
+&lt;script&gt;
+  const vaszon = document.querySelector("#hullam");
+  const g = vaszon.getContext("2d");
+
+  g.fillStyle = "#ff6fb1";           // a kitöltés színe
+  g.fillRect(10, 10, 50, 30);        // x, y, szélesség, magasság
+&lt;/script&gt;</code></pre>
+<p>A <code>clearRect</code> törli a vásznat. Minden képkockánál először törölni kell, majd újra rajzolni.</p>
+
+<h2>5. Hullámforma: a hang csúcsértékei</h2>
+<p>A hullámforma a szám hangerőgörbéje. Ehhez a hangot először be kell olvasni, majd a csúcsértékeit kiszámolni. A <code>decodeAudioData</code> egy fájlt hangadattá alakít:</p>
+<pre><code>const arr = await fajl.arrayBuffer();
+const buf = await ctx.decodeAudioData(arr);
+const adat = buf.getChannelData(0);   // az első csatorna mintái</code></pre>
+<p>Az egész számot egy vonal-sorozatra kell felosztani. Minden szakasz legnagyobb értéke lesz egy oszlop magassága:</p>
+<pre><code>function felbontas(adat, n) {
+  const resz = Math.floor(adat.length / n);
+  const eredmeny = [];
+  for (let i = 0; i &lt; n; i++) {
+    let max = 0;
+    for (let j = 0; j &lt; resz; j++) {
+      const v = Math.abs(adat[i * resz + j]);
+      if (v &gt; max) max = v;
+    }
+    eredmeny.push(max);
+  }
+  return eredmeny;
+}</code></pre>
+<p>Ezután minden oszlopot megrajzolsz, a lejátszott részt más színnel:</p>
+<pre><code>function rajzolHullam(arany) {   // arany: 0 és 1 között, a lejátszott rész
+  g.clearRect(0, 0, vaszon.width, vaszon.height);
+  peaks.forEach((ertek, i) =&gt; {
+    const amp = ertek * vaszon.height / 2;
+    g.fillStyle = (i / peaks.length &lt;= arany) ? "#ff6fb1" : "#e6d9ee";
+    g.fillRect(i, vaszon.height / 2 - amp, 1, amp * 2);
+  });
+}</code></pre>
+
+<h2>6. Hangerőmérő: az AnalyserNode</h2>
+<p>Az elemző (<code>AnalyserNode</code>) a hang pillanatnyi értékeit adja vissza, így a hangerő kiszámolható. Ezt a hangmotor láncába kötöd, a hangszóró elé:</p>
+<pre><code>const elemzo = ctx.createAnalyser();
+elemzo.fftSize = 256;
+forras.connect(elemzo).connect(ctx.destination);
+
+// minden képkockánál:
+const adat = new Uint8Array(elemzo.fftSize);
+elemzo.getByteTimeDomainData(adat);   // a jelszint értékei 0 és 255 között
+
+let osszeg = 0;
+for (const v of adat) {
+  const x = (v - 128) / 128;         // -1 és 1 közé hozzuk
+  osszeg += x * x;
+}
+const szint = Math.sqrt(osszeg / adat.length);   // RMS: a hangerő átlaga</code></pre>
+<p>Az RMS (átlagos négyzetes érték) egy szám, ami a hangerő valós érzetét adja. A mérő szélességét ebből számolod: <code>szint * 300</code> százalék, de 100-nál nagyobb nem lehet.</p>
+
+<div class="tip"><b>Tipp:</b> a <code>Uint8Array</code> minden képkockánál új tömböt foglal. Egy tanuló programban ez rendben van, később érdemes egyszer létrehozni, és újra felhasználni.</div>
+
+<h2>7. Teljes kód és feladatok</h2>
+<p>Az alábbi oldal egy lejátszót tartalmaz forgó lemezzel, hullámformával, hangerőmérővel és idő-kijelzéssel. Töltsd be a számodat a fájlválasztóval, és nézd meg, hogyan mozog minden.</p>
+
+<div class="demo">
+  <input type="file" id="fajl" accept="audio/*">
+  <div class="lemez" id="lemez"><div class="kozep"></div></div>
+  <canvas id="hullam" width="600" height="80"></canvas>
+  <div class="meter"><i id="szint"></i></div>
+  <div class="gombok">
+    <button id="play">Lejátszás</button>
+    <button id="szunet">Szünet</button>
+  </div>
+  <p id="ido">0:00 / 0:00</p>
+  <audio id="zene"></audio>
+</div>
+
+<pre><code>&lt;input type="file" id="fajl" accept="audio/*"&gt;
+&lt;div id="lemez"&gt;&lt;div class="kozep"&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;canvas id="hullam" width="600" height="80"&gt;&lt;/canvas&gt;
+&lt;div class="meter"&gt;&lt;i id="szint"&gt;&lt;/i&gt;&lt;/div&gt;
+&lt;button id="play"&gt;Lejátszás&lt;/button&gt; &lt;button id="szunet"&gt;Szünet&lt;/button&gt;
+&lt;p id="ido"&gt;0:00 / 0:00&lt;/p&gt;
+&lt;audio id="zene"&gt;&lt;/audio&gt;
+
+&lt;script&gt;
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const zene = document.querySelector("#zene");
+  const forras = ctx.createMediaElementSource(zene);
+
+  const elemzo = ctx.createAnalyser();
+  elemzo.fftSize = 256;
+  forras.connect(elemzo).connect(ctx.destination);
+
+  const lemez = document.querySelector("#lemez");
+  const vaszon = document.querySelector("#hullam");
+  const g = vaszon.getContext("2d");
+  const szint = document.querySelector("#szint");
+  const ido = document.querySelector("#ido");
+  let peaks = [];
+  let forgas = 0;
+  let utolso = performance.now();
+
+  function felbontas(adat, n) {
+    const resz = Math.floor(adat.length / n);
+    const eredmeny = [];
+    for (let i = 0; i &lt; n; i++) {
+      let max = 0;
+      for (let j = 0; j &lt; resz; j++) {
+        const v = Math.abs(adat[i * resz + j]);
+        if (v &gt; max) max = v;
+      }
+      eredmeny.push(max);
+    }
+    return eredmeny;
+  }
+
+  function rajzolHullam(arany) {
+    g.clearRect(0, 0, vaszon.width, vaszon.height);
+    peaks.forEach((ertek, i) =&gt; {
+      const amp = ertek * vaszon.height / 2;
+      g.fillStyle = (i / peaks.length &lt;= arany) ? "#ff6fb1" : "#e6d9ee";
+      g.fillRect(i, vaszon.height / 2 - amp, 1, amp * 2);
+    });
+  }
+
+  function formaz(s) {
+    if (!isFinite(s)) return "0:00";
+    return Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+  }
+
+  document.querySelector("#fajl").addEventListener("change", async (e) =&gt; {
+    const f = e.target.files[0];
+    if (!f) return;
+    zene.src = URL.createObjectURL(f);
+    const buf = await ctx.decodeAudioData(await f.arrayBuffer());
+    peaks = felbontas(buf.getChannelData(0), vaszon.width);
+  });
+
+  document.querySelector("#play").addEventListener("click", () =&gt; {
+    ctx.resume();
+    zene.play();
+  });
+  document.querySelector("#szunet").addEventListener("click", () =&gt; zene.pause());
+
+  function frissit(most) {
+    const dt = (most - utolso) / 1000;
+    utolso = most;
+
+    if (!zene.paused) forgas += 90 * dt;     // 90 fok másodpercenként
+    lemez.style.transform = "rotate(" + forgas + "deg)";
+
+    if (peaks.length &amp;&amp; isFinite(zene.duration)) {
+      rajzolHullam(zene.currentTime / zene.duration);
+    }
+
+    const adat = new Uint8Array(elemzo.fftSize);
+    elemzo.getByteTimeDomainData(adat);
+    let osszeg = 0;
+    for (const v of adat) {
+      const x = (v - 128) / 128;
+      osszeg += x * x;
+    }
+    const rms = Math.sqrt(osszeg / adat.length);
+    szint.style.width = Math.min(100, rms * 300) + "%";
+
+    ido.textContent = formaz(zene.currentTime) + " / " + formaz(zene.duration);
+    requestAnimationFrame(frissit);
+  }
+  requestAnimationFrame(frissit);
+&lt;/script&gt;</code></pre>
+
+<div class="task"><b>1. feladat:</b> Ha a lemez forgása túl gyors, csökkentsd a 90-et 45-re. Ha a mozgás akadozik, nézd meg a Konzolt, és ellenőrizd, hogy nincs-e hibaüzenet.</div>
+
+<div class="task"><b>2. feladat:</b> A hullámformában a lejátszott rész színe legyen sötétebb lila, a hátralévő világos rózsaszín. Módosítsd a <code>rajzolHullam</code> függvényt.</div>
+
+<div class="task"><b>3. feladat (bónusz):</b> A hangerőmérő színe legyen zöld, ha a szint 0,3 alatt van, sárga 0,3 és 0,6 között, és piros 0,6 felett. A <code>style.background</code> változtatásával tudod megoldani.</div>
+
+<div class="tip"><b>Mi jön a 6. részben?</b> A tempó: a BPM-elemzés, a SYNC gomb, és a hurok (loop). A pult legtöbb ritmikus részét ebben a részben építjük fel.</div>
+
+<script>
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const zene = document.querySelector("#zene");
+  const forras = ctx.createMediaElementSource(zene);
+
+  const elemzo = ctx.createAnalyser();
+  elemzo.fftSize = 256;
+  forras.connect(elemzo).connect(ctx.destination);
+
+  const lemez = document.querySelector("#lemez");
+  const vaszon = document.querySelector("#hullam");
+  const g = vaszon.getContext("2d");
+  const szint = document.querySelector("#szint");
+  const ido = document.querySelector("#ido");
+  let peaks = [];
+  let forgas = 0;
+  let utolso = performance.now();
+
+  function felbontas(adat, n) {
+    const resz = Math.floor(adat.length / n);
+    const eredmeny = [];
+    for (let i = 0; i < n; i++) {
+      let max = 0;
+      for (let j = 0; j < resz; j++) {
+        const v = Math.abs(adat[i * resz + j]);
+        if (v > max) max = v;
+      }
+      eredmeny.push(max);
+    }
+    return eredmeny;
+  }
+
+  function rajzolHullam(arany) {
+    g.clearRect(0, 0, vaszon.width, vaszon.height);
+    peaks.forEach((ertek, i) => {
+      const amp = ertek * vaszon.height / 2;
+      g.fillStyle = (i / peaks.length <= arany) ? "#ff6fb1" : "#e6d9ee";
+      g.fillRect(i, vaszon.height / 2 - amp, 1, amp * 2);
+    });
+  }
+
+  function formaz(s) {
+    if (!isFinite(s)) return "0:00";
+    return Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+  }
+
+  document.querySelector("#fajl").addEventListener("change", async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    zene.src = URL.createObjectURL(f);
+    const buf = await ctx.decodeAudioData(await f.arrayBuffer());
+    peaks = felbontas(buf.getChannelData(0), vaszon.width);
+  });
+
+  document.querySelector("#play").addEventListener("click", () => {
+    ctx.resume();
+    zene.play();
+  });
+  document.querySelector("#szunet").addEventListener("click", () => zene.pause());
+
+  function frissit(most) {
+    const dt = (most - utolso) / 1000;
+    utolso = most;
+
+    if (!zene.paused) forgas += 90 * dt;
+    lemez.style.transform = "rotate(" + forgas + "deg)";
+
+    if (peaks.length && isFinite(zene.duration)) {
+      rajzolHullam(zene.currentTime / zene.duration);
+    }
+
+    const adat = new Uint8Array(elemzo.fftSize);
+    elemzo.getByteTimeDomainData(adat);
+    let osszeg = 0;
+    for (const v of adat) {
+      const x = (v - 128) / 128;
+      osszeg += x * x;
+    }
+    const rms = Math.sqrt(osszeg / adat.length);
+    szint.style.width = Math.min(100, rms * 300) + "%";
+
+    ido.textContent = formaz(zene.currentTime) + " / " + formaz(zene.duration);
+    requestAnimationFrame(frissit);
+  }
+  requestAnimationFrame(frissit);
+</script>
+</body>
+</html>

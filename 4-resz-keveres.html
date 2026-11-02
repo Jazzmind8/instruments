@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JavaScript, 4. rész: hangkeverés</title>
+<style>
+  body{font-family:system-ui,"Segoe UI",Roboto,sans-serif; line-height:1.6; max-width:760px; margin:0 auto; padding:20px 16px 60px; color:#2b1f36; background:#fff8fc}
+  h1{color:#e0457f; margin-bottom:4px}
+  h2{color:#7a4fd6; margin-top:40px; border-bottom:2px solid #f0d6ea; padding-bottom:4px}
+  h3{margin-top:24px}
+  pre{background:#241a2e; color:#f8eefc; padding:14px; border-radius:12px; overflow-x:auto; font-size:14px}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace}
+  p code, li code{background:#f3e6f7; padding:1px 5px; border-radius:6px; font-size:0.95em}
+  .tip{background:#eaf9f3; border-left:5px solid #2fb98c; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .task{background:#fff3d6; border-left:5px solid #f5b600; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .warn{background:#ffe9ee; border-left:5px solid #e0457f; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .toc li{margin:4px 0}
+  .demo{border:2px solid #f0d6ea; border-radius:14px; padding:14px; margin:14px 0; background:#fff; display:grid; gap:12px}
+  .demo .deck{border:1px solid #f0d6ea; border-radius:10px; padding:10px; display:grid; gap:6px}
+  .demo label{display:grid; gap:2px; font-size:14px}
+  .demo .row{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  @media (max-width:520px){ .demo .row{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<h1>Hangkeverés</h1>
+<p><b>4. rész a sorozatból.</b> Eddig a hangerőt és a tempót az audio elem saját tulajdonságaival állítottuk. Ez a rész a <b>Web Audio API</b>-ra épül: ez egy böngészőbe beépített hangmotor, amely a hangot lépésenként, egymás után kapcsolt „dobozokon” vezeti át. Ezzel tudod majd az EQ-t, a crossfadert és a főhangerőt is megvalósítani.</p>
+
+<h2>Tartalomjegyzék</h2>
+<ol class="toc">
+  <li>A hangmotor: az AudioContext</li>
+  <li>A hangforrás: createMediaElementSource</li>
+  <li>A hangrészek lánca: connect</li>
+  <li>GainNode: hangerő</li>
+  <li>BiquadFilterNode: EQ-sávok</li>
+  <li>Crossfader: az egyenlő teljesítményű átmenet</li>
+  <li>Teljes kód és feladatok</li>
+</ol>
+
+<h2>1. A hangmotor: az AudioContext</h2>
+<p>Minden Web Audio programot egy <code>AudioContext</code> nevű hangmotor kezd el. Ezt egyszer hozod létre:</p>
+<pre><code>const ctx = new (window.AudioContext || window.webkitAudioContext)();</code></pre>
+<p>A böngészők a hangmotort első gombnyomásig felfüggesztve tartják. Ezért a kódban mindig van egy <code>ctx.resume()</code> hívás egy kattintás eseményben:</p>
+<pre><code>lejatszasGomb.addEventListener("click", () =&gt; {
+  ctx.resume();
+  lejatszo.play();
+});</code></pre>
+<div class="warn"><b>Szabály:</b> a hangmotort csak felhasználói kattintás után lehet elindítani, különben a böngésző csendben tartja.</div>
+
+<h2>2. A hangforrás: createMediaElementSource</h2>
+<p>Az audio elemet hozzá kell kötni a hangmotorhoz. Ezt a <code>createMediaElementSource</code> teszi:</p>
+<pre><code>const forras = ctx.createMediaElementSource(lejatszo);</code></pre>
+<div class="warn"><b>Fontos:</b> egy audio elemhez csak egyszer lehet forrást létrehozni. Ha kétszer hívod, hibát kapsz. Ezért a beállítást egyszer, az oldal betöltésekor végezd el.</div>
+
+<h2>3. A hangrészek lánca: connect</h2>
+<p>A Web Audio programban a részek „dobozok”, amelyeket egymás után kötünk össze a <code>connect</code> paranccsal. A hang a forrásból indul, és a végső kimenetig halad:</p>
+<pre><code>forras.connect(hangero).connect(ctx.destination);</code></pre>
+<p>A <code>ctx.destination</code> a hangszóró vagy a fejhallgató. Ezt a láncot szemléltetheti egy vízcső: a víz a forrástól a csapig folyik, és minden szűrő vagy szelep a láncban módosítja az áramlást.</p>
+<div class="tip"><b>Lényeg:</b> a <code>connect</code> láncolható: <code>a.connect(b).connect(c)</code> egyenértékű azzal, hogy <code>a</code>-t <code>b</code>-hez, <code>b</code>-t <code>c</code>-hez köted.</div>
+
+<h2>4. GainNode: hangerő</h2>
+<p>A <code>createGain()</code> egy hangerő-csomópontot ad. Az értéke a <code>gain.value</code>:</p>
+<pre><code>const hangero = ctx.createGain();
+hangero.gain.value = 0.5;   // fél hangerő
+hangero.gain.value = 1;     // normál
+hangero.gain.value = 0;     // néma</code></pre>
+
+<h3>Simább változás: setTargetAtTime</h3>
+<p>Ha a csúszkát azonnal állítod, a hang kattanhat. Erre a <code>setTargetAtTime</code> való: a változás fokozatosan történik.</p>
+<pre><code>hangero.gain.setTargetAtTime(0.8, ctx.currentTime, 0.03);</code></pre>
+<p>A harmadik szám a simítás idejét adja másodpercben. A <code>ctx.currentTime</code> a hangmotor saját órája.</p>
+
+<h2>5. BiquadFilterNode: EQ-sávok</h2>
+<p>A szűrő a hangot frekvenciák szerint alakítja. Három fő típus kell az EQ-hoz:</p>
+<ul>
+  <li><code>lowshelf</code>: a mély hangokat emeli vagy vágja</li>
+  <li><code>peaking</code>: egy középső sávot emel vagy vág</li>
+  <li><code>highshelf</code>: a magas hangokat emeli vagy vágja</li>
+</ul>
+<pre><code>const mely = ctx.createBiquadFilter();
+mely.type = "lowshelf";
+mely.frequency.value = 250;   // a vágási pont Hz-ben
+mely.gain.value = 0;          // decibel: 0 = nincs változás, +12 erősít, -12 gyengít
+
+const kozep = ctx.createBiquadFilter();
+kozep.type = "peaking";
+kozep.frequency.value = 1000;
+kozep.Q.value = 1;            // a sáv szélessége
+kozep.gain.value = 0;
+
+const magas = ctx.createBiquadFilter();
+magas.type = "highshelf";
+magas.frequency.value = 4000;
+magas.gain.value = 0;</code></pre>
+<p>A csúszka értékéből a decibelt így kapod: <code>(csuszkaErtek - 50) / 50 * 12</code>, ha a csúszka 0–100 között mozog. Ez -12 és +12 dB közötti értéket ad.</p>
+
+<div class="tip"><b>Láncolva:</b> <code>forras.connect(mely).connect(kozep).connect(magas).connect(hangero).connect(ctx.destination)</code> — ez már egy teljes, EQ-val ellátott sáv.</div>
+
+<h2>6. Crossfader: az egyenlő teljesítményű átmenet</h2>
+<p>A crossfader két deck közötti keverés. Ha egyszerűen lineárisan csökkented az egyik és növeled a másik hangerejét, a közepén a hang halkabbnak tűnik. Erre a jobb megoldás a koszinusz-szinusz párosítás, amely egyenlő teljesítményt tart:</p>
+<pre><code>// x értéke 0 és 1 között: 0 = csak A, 1 = csak B, 0,5 = középen
+const gainA = Math.cos(x * Math.PI / 2);
+const gainB = Math.sin(x * Math.PI / 2);</code></pre>
+<div class="tip"><b>Ellenőrzés:</b> x = 0 → A = 1, B = 0. x = 1 → A = 0, B = 1. x = 0,5 → mindkettő körülbelül 0,707, ami együtt egyenletes hangerőt ad.</div>
+
+<h2>7. Teljes kód és feladatok</h2>
+<p>Az alábbi oldal két decket köt egy közös kimenetre, mindegyikhez EQ-t és hangerőt ad, a végén pedig egy crossfader keveri őket. Mentsd el <code>index.html</code> néven, és próbáld ki. A demóban a hangfájlt tudod betölteni mindkét decken.</p>
+
+<div class="demo" id="demo">
+  <div class="row">
+    <div class="deck">
+      <b>A deck</b>
+      <input type="file" accept="audio/*" data-fajl>
+      <audio data-lejatszo></audio>
+      <button data-play>Lejátszás</button> <button data-szunet>Szünet</button>
+      <label>Mély <input type="range" min="0" max="100" value="50" data-mely></label>
+      <label>Közép <input type="range" min="0" max="100" value="50" data-kozep></label>
+      <label>Magas <input type="range" min="0" max="100" value="50" data-magas></label>
+      <label>Hangerő <input type="range" min="0" max="100" value="80" data-hangero></label>
+      <span data-allapot>Nincs dal</span>
+    </div>
+    <div class="deck">
+      <b>B deck</b>
+      <input type="file" accept="audio/*" data-fajl>
+      <audio data-lejatszo></audio>
+      <button data-play>Lejátszás</button> <button data-szunet>Szünet</button>
+      <label>Mély <input type="range" min="0" max="100" value="50" data-mely></label>
+      <label>Közép <input type="range" min="0" max="100" value="50" data-kozep></label>
+      <label>Magas <input type="range" min="0" max="100" value="50" data-magas></label>
+      <label>Hangerő <input type="range" min="0" max="100" value="80" data-hangero></label>
+      <span data-allapot>Nincs dal</span>
+    </div>
+  </div>
+  <label>Crossfader (A ← → B) <input type="range" min="0" max="100" value="50" id="xfade"></label>
+  <label>Főhangerő <input type="range" min="0" max="100" value="80" id="master"></label>
+</div>
+
+<pre><code>&lt;script&gt;
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Közös kimenet: a főhangerő, majd a hangszóró
+  const master = ctx.createGain();
+  master.connect(ctx.destination);
+
+  // A két deck kimenete a crossfaderhez
+  const kimenetA = ctx.createGain();
+  const kimenetB = ctx.createGain();
+  kimenetA.connect(master);
+  kimenetB.connect(master);
+
+  function allitsBe(deckElem, kimenet) {
+    const fajl = deckElem.querySelector("[data-fajl]");
+    const lejatszo = deckElem.querySelector("[data-lejatszo]");
+    const play = deckElem.querySelector("[data-play]");
+    const szunet = deckElem.querySelector("[data-szunet]");
+    const mely = deckElem.querySelector("[data-mely]");
+    const kozep = deckElem.querySelector("[data-kozep]");
+    const magas = deckElem.querySelector("[data-magas]");
+    const hangero = deckElem.querySelector("[data-hangero]");
+    const allapot = deckElem.querySelector("[data-allapot]");
+
+    // EQ-sávok
+    const melySav = ctx.createBiquadFilter();
+    melySav.type = "lowshelf"; melySav.frequency.value = 250;
+    const kozepSav = ctx.createBiquadFilter();
+    kozepSav.type = "peaking"; kozepSav.frequency.value = 1000; kozepSav.Q.value = 1;
+    const magasSav = ctx.createBiquadFilter();
+    magasSav.type = "highshelf"; magasSav.frequency.value = 4000;
+
+    const hangeroNode = ctx.createGain();
+
+    // A forrás és a lánc. Ez egy elemhez csak egyszer készülhet.
+    const forras = ctx.createMediaElementSource(lejatszo);
+    forras.connect(melySav).connect(kozepSav).connect(magasSav).connect(hangeroNode).connect(kimenet);
+
+    fajl.addEventListener("change", () =&gt; {
+      const f = fajl.files[0];
+      if (!f) return;
+      lejatszo.src = URL.createObjectURL(f);
+      allapot.textContent = "Betöltve: " + f.name;
+    });
+
+    play.addEventListener("click", () =&gt; {
+      ctx.resume();
+      if (!lejatszo.src) { allapot.textContent = "Előbb tölts be egy dalt!"; return; }
+      lejatszo.play();
+      allapot.textContent = "Szól";
+    });
+
+    szunet.addEventListener("click", () =&gt; {
+      lejatszo.pause();
+      allapot.textContent = "Áll";
+    });
+
+    // A csúszka 0–100 értékéből -12 és +12 dB lesz
+    const dB = (csuszka) =&gt; (csuszka.value - 50) / 50 * 12;
+    mely.addEventListener("input", () =&gt; { melySav.gain.setTargetAtTime(dB(mely), ctx.currentTime, 0.03); });
+    kozep.addEventListener("input", () =&gt; { kozepSav.gain.setTargetAtTime(dB(kozep), ctx.currentTime, 0.03); });
+    magas.addEventListener("input", () =&gt; { magasSav.gain.setTargetAtTime(dB(magas), ctx.currentTime, 0.03); });
+
+    hangero.addEventListener("input", () =&gt; {
+      hangeroNode.gain.setTargetAtTime(hangero.value / 100, ctx.currentTime, 0.03);
+    });
+  }
+
+  allitsBe(document.querySelectorAll(".demo .deck")[0], kimenetA);
+  allitsBe(document.querySelectorAll(".demo .deck")[1], kimenetB);
+
+  // Crossfader: egyenlő teljesítményű átmenet
+  const xfade = document.querySelector("#xfade");
+  xfade.addEventListener("input", () =&gt; {
+    const x = xfade.value / 100;
+    kimenetA.gain.setTargetAtTime(Math.cos(x * Math.PI / 2), ctx.currentTime, 0.03);
+    kimenetB.gain.setTargetAtTime(Math.sin(x * Math.PI / 2), ctx.currentTime, 0.03);
+  });
+
+  // Főhangerő
+  const masterCsuszka = document.querySelector("#master");
+  masterCsuszka.addEventListener("input", () =&gt; {
+    master.gain.setTargetAtTime(masterCsuszka.value / 100, ctx.currentTime, 0.03);
+  });
+&lt;/script&gt;</code></pre>
+
+<div class="warn"><b>Gyakori hiba:</b> ha a hang nem szól, nézd meg a Konzolt (F12). Ha „The AudioContext was not allowed to start” üzenet van, a <code>ctx.resume()</code> hiányzik, vagy nem kattintás eseményben van.</div>
+
+<div class="task"><b>1. feladat:</b> Adj a főhangerő csúszka mellé egy szöveget, amely a százalékos értéket mutatja, és a csúszkával együtt változik.</div>
+
+<div class="task"><b>2. feladat:</b> A crossfader szélső helyzetében az egyik deck teljesen néma legyen. Ellenőrizd a Konzolban a <code>kimenetA.gain.value</code> és a <code>kimenetB.gain.value</code> értékét.</div>
+
+<div class="task"><b>3. feladat (bónusz):</b> Egy <code>AnalyserNode</code> csomópontot kötj a főkimenetre, és számold ki a hangerő szintjét. Ehhez a <code>createAnalyser()</code> és a <code>getByteTimeDomainData</code> hívásokat használd.</div>
+
+<div class="tip"><b>Mi jön az 5. részben?</b> A vizuális elemek: a forgó lemez, a hullámforma, és a hangerőmérő. Ezeket a <code>requestAnimationFrame</code> nevű függvénnyel valósítjuk meg, amely minden képkockánál lefut.</div>
+
+<script>
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+  const master = ctx.createGain();
+  master.connect(ctx.destination);
+
+  const kimenetA = ctx.createGain();
+  const kimenetB = ctx.createGain();
+  kimenetA.connect(master);
+  kimenetB.connect(master);
+
+  function allitsBe(deckElem, kimenet) {
+    const fajl = deckElem.querySelector("[data-fajl]");
+    const lejatszo = deckElem.querySelector("[data-lejatszo]");
+    const play = deckElem.querySelector("[data-play]");
+    const szunet = deckElem.querySelector("[data-szunet]");
+    const mely = deckElem.querySelector("[data-mely]");
+    const kozep = deckElem.querySelector("[data-kozep]");
+    const magas = deckElem.querySelector("[data-magas]");
+    const hangero = deckElem.querySelector("[data-hangero]");
+    const allapot = deckElem.querySelector("[data-allapot]");
+
+    const melySav = ctx.createBiquadFilter();
+    melySav.type = "lowshelf"; melySav.frequency.value = 250;
+    const kozepSav = ctx.createBiquadFilter();
+    kozepSav.type = "peaking"; kozepSav.frequency.value = 1000; kozepSav.Q.value = 1;
+    const magasSav = ctx.createBiquadFilter();
+    magasSav.type = "highshelf"; magasSav.frequency.value = 4000;
+
+    const hangeroNode = ctx.createGain();
+
+    const forras = ctx.createMediaElementSource(lejatszo);
+    forras.connect(melySav).connect(kozepSav).connect(magasSav).connect(hangeroNode).connect(kimenet);
+
+    fajl.addEventListener("change", () => {
+      const f = fajl.files[0];
+      if (!f) return;
+      lejatszo.src = URL.createObjectURL(f);
+      allapot.textContent = "Betöltve: " + f.name;
+    });
+
+    play.addEventListener("click", () => {
+      ctx.resume();
+      if (!lejatszo.src) { allapot.textContent = "Előbb tölts be egy dalt!"; return; }
+      lejatszo.play();
+      allapot.textContent = "Szól";
+    });
+
+    szunet.addEventListener("click", () => {
+      lejatszo.pause();
+      allapot.textContent = "Áll";
+    });
+
+    const dB = (csuszka) => (csuszka.value - 50) / 50 * 12;
+    mely.addEventListener("input", () => { melySav.gain.setTargetAtTime(dB(mely), ctx.currentTime, 0.03); });
+    kozep.addEventListener("input", () => { kozepSav.gain.setTargetAtTime(dB(kozep), ctx.currentTime, 0.03); });
+    magas.addEventListener("input", () => { magasSav.gain.setTargetAtTime(dB(magas), ctx.currentTime, 0.03); });
+
+    hangero.addEventListener("input", () => {
+      hangeroNode.gain.setTargetAtTime(hangero.value / 100, ctx.currentTime, 0.03);
+    });
+  }
+
+  allitsBe(document.querySelectorAll(".demo .deck")[0], kimenetA);
+  allitsBe(document.querySelectorAll(".demo .deck")[1], kimenetB);
+
+  const xfade = document.querySelector("#xfade");
+  xfade.addEventListener("input", () => {
+    const x = xfade.value / 100;
+    kimenetA.gain.setTargetAtTime(Math.cos(x * Math.PI / 2), ctx.currentTime, 0.03);
+    kimenetB.gain.setTargetAtTime(Math.sin(x * Math.PI / 2), ctx.currentTime, 0.03);
+  });
+
+  const masterCsuszka = document.querySelector("#master");
+  masterCsuszka.addEventListener("input", () => {
+    master.gain.setTargetAtTime(masterCsuszka.value / 100, ctx.currentTime, 0.03);
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JavaScript, 3. rész: két deck</title>
+<style>
+  body{font-family:system-ui,"Segoe UI",Roboto,sans-serif; line-height:1.6; max-width:760px; margin:0 auto; padding:20px 16px 60px; color:#2b1f36; background:#fff8fc}
+  h1{color:#e0457f; margin-bottom:4px}
+  h2{color:#7a4fd6; margin-top:40px; border-bottom:2px solid #f0d6ea; padding-bottom:4px}
+  h3{margin-top:24px}
+  pre{background:#241a2e; color:#f8eefc; padding:14px; border-radius:12px; overflow-x:auto; font-size:14px}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace}
+  p code, li code{background:#f3e6f7; padding:1px 5px; border-radius:6px; font-size:0.95em}
+  .tip{background:#eaf9f3; border-left:5px solid #2fb98c; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .task{background:#fff3d6; border-left:5px solid #f5b600; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .warn{background:#ffe9ee; border-left:5px solid #e0457f; padding:10px 14px; border-radius:8px; margin:16px 0}
+  .toc li{margin:4px 0}
+  .demo{border:2px solid #f0d6ea; border-radius:14px; padding:14px; margin:14px 0; background:#fff}
+  .demo label{display:block; margin:8px 0}
+</style>
+</head>
+<body>
+
+<h1>Két deck</h1>
+<p><b>3. rész a sorozatból.</b> Eddig egy lejátszót készítettél. Most kettőt fogsz egyszerre kezelni, függetlenül egymástól, hangerővel és tempóval. Közben megtanulod a függvények igazi erejét: egyszer írod meg a kódot, és többször használod.</p>
+
+<h2>Tartalomjegyzék</h2>
+<ol class="toc">
+  <li>Miért ne másoljuk a kódot?</li>
+  <li>Adatattribútumok: data-*</li>
+  <li>A csúszka: range és az input esemény</li>
+  <li>Függvény, ami egy egész deckot beállít</li>
+  <li>Sablonstringek: a template literal</li>
+  <li>Több elem egyszerre: forEach</li>
+  <li>A hangerő és a tempó</li>
+  <li>Teljes kód és feladatok</li>
+</ol>
+
+<h2>1. Miért ne másoljuk a kódot?</h2>
+<p>Ha a második lejátszóhoz bemásolod az elsőhöz írt kódot, és átírod a neveket, két probléma van. Először: ha később változtatni kell valamin, mindkét helyen át kell írni. Másodszor: könnyen elírsz valamit az egyik példányban. A jobb megoldás, hogy egyetlen függvényt írsz, és azt többször meghívod.</p>
+
+<div class="tip"><b>Alapelv:</b> ha ugyanazt a kódot kétszer írod le, az már jel, hogy függvényt kellene írnod.</div>
+
+<h2>2. Adatattribútumok: data-*</h2>
+<p>A HTML-elemekre a <code>data-</code> kezdetű attribútumokat is írhatunk. Ezek olyan jelölések, amelyeket a JavaScript könnyen megtalál, és a CSS nem használ:</p>
+<pre><code>&lt;button data-play&gt;Lejátszás&lt;/button&gt;
+
+&lt;script&gt;
+  const gomb = document.querySelector("[data-play]");
+&lt;/script&gt;</code></pre>
+<p>Így nem kell minden gombnak egyedi <code>id</code>-t adni, és egy csoportban lévő elemeket egységesen tudsz kezelni.</p>
+
+<h2>3. A csúszka: range és az input esemény</h2>
+<p>A csúszka egy <code>&lt;input type="range"&gt;</code> elem. Megadod a legkisebb és a legnagyobb értéket, és a kezdőértéket:</p>
+<pre><code>&lt;input type="range" min="0" max="100" value="80"&gt;</code></pre>
+<p>Amikor a felhasználó mozgatja, az <code>input</code> esemény fut le. Ezt a <code>click</code> helyett használjuk:</p>
+<pre><code>const csuszka = document.querySelector("[data-hangero]");
+
+csuszka.addEventListener("input", () =&gt; {
+  console.log("Most: " + csuszka.value);
+});</code></pre>
+<div class="tip"><b>Fontos:</b> a <code>value</code> mindig szövegként érkezik. Számmá kell alakítani, ha számolni akarsz vele: például <code>Number(csuszka.value)</code>, vagy egyszerűen <code>csuszka.value / 100</code>, mert a szorzás és osztás automatikusan számmá alakítja.</div>
+
+<h2>4. Függvény, ami egy egész deckot beállít</h2>
+<p>A deck egy HTML-csoport: fájlválasztó, lejátszó, gombok, csúszkák, állapot. Egy függvénnyel mindezt egyszerre kezelhetjük. A függvény egy <i>elemet</i> kap, és a belső elemeket a <code>querySelector</code> segítségével keresi meg:</p>
+<pre><code>function allitsBe(deckElem) {
+  const fajl = deckElem.querySelector("[data-fajl]");
+  const lejatszo = deckElem.querySelector("[data-lejatszo]");
+  // ... további elemek és eseménykezelők
+}</code></pre>
+<p>A <code>deckElem.querySelector</code> csak a megadott deckben keres, nem az egész oldalon. Ez az, ami miatt a két deck nem keveredik össze.</p>
+
+<h2>5. Sablonstringek: a template literal</h2>
+<p>Ha dinamikusan szeretnél szöveget összerakni, a visszafelé idézőjel (backtick, `) és a <code>${}</code> jelölés a legkényelmesebb:</p>
+<pre><code>const deck = "a";
+const azonosito = `#${deck}-lejatszo`;   // "#a-lejatszo"
+console.log(`Ez a(z) ${deck} deck.`);     // Ez a(z) a deck.</code></pre>
+<div class="tip"><b>Összehasonlítás:</b> a régi, <code>+</code> jelekkel összerakott módszer ugyanezt tudja, de a sablonstring olvashatóbb.</div>
+
+<h2>6. Több elem egyszerre: forEach</h2>
+<p>Az oldalon két deck van. A <code>querySelectorAll</code> mindkettőt megadja, a <code>forEach</code> pedig mindegyikre lefuttatja a függvényt:</p>
+<pre><code>document.querySelectorAll(".deck").forEach(allitsBe);</code></pre>
+<p>Ez az egy sor két decket állít be, és ha később egy harmadikat adsz az oldalhoz, az is automatikusan működik.</p>
+
+<h2>7. A hangerő és a tempó</h2>
+<p>Az audio elemnek két fontos tulajdonsága van, amit a csúszkával állíthatsz:</p>
+<ul>
+  <li><code>volume</code>: a hangerő 0 és 1 között. Ha a csúszka 0–100, akkor a <code>value / 100</code>.</li>
+  <li><code>playbackRate</code>: a lejátszás sebessége. 1 a normál, 0,5 a lassú, 1,5 a gyors. A csúszkából a <code>value / 100</code> adja meg.</li>
+</ul>
+
+<h2>8. Teljes kód és feladatok</h2>
+<p>Ez a teljes oldal. Mentsd el <code>index.html</code> néven, nyisd meg a böngészőben, és próbáld ki. Két független deck: mindkettőbe külön fájlt tölthetsz, külön hangerővel és tempóval.</p>
+
+<div class="demo">
+  <div class="deck">
+    <h3>A deck</h3>
+    <input type="file" accept="audio/*" data-fajl>
+    <audio data-lejatszo></audio>
+    <p><button data-play>Lejátszás</button> <button data-szunet>Szünet</button></p>
+    <label>Hangerő <input type="range" min="0" max="100" value="80" data-hangero></label>
+    <label>Tempó <input type="range" min="50" max="150" value="100" data-tempo></label>
+    <p data-allapot>Nincs dal betöltve</p>
+  </div>
+  <div class="deck">
+    <h3>B deck</h3>
+    <input type="file" accept="audio/*" data-fajl>
+    <audio data-lejatszo></audio>
+    <p><button data-play>Lejátszás</button> <button data-szunet>Szünet</button></p>
+    <label>Hangerő <input type="range" min="0" max="100" value="80" data-hangero></label>
+    <label>Tempó <input type="range" min="50" max="150" value="100" data-tempo></label>
+    <p data-allapot>Nincs dal betöltve</p>
+  </div>
+</div>
+
+<pre><code>&lt;div class="deck"&gt;
+  &lt;h3&gt;A deck&lt;/h3&gt;
+  &lt;input type="file" accept="audio/*" data-fajl&gt;
+  &lt;audio data-lejatszo&gt;&lt;/audio&gt;
+  &lt;p&gt;&lt;button data-play&gt;Lejátszás&lt;/button&gt; &lt;button data-szunet&gt;Szünet&lt;/button&gt;&lt;/p&gt;
+  &lt;label&gt;Hangerő &lt;input type="range" min="0" max="100" value="80" data-hangero&gt;&lt;/label&gt;
+  &lt;label&gt;Tempó &lt;input type="range" min="50" max="150" value="100" data-tempo&gt;&lt;/label&gt;
+  &lt;p data-allapot&gt;Nincs dal betöltve&lt;/p&gt;
+&lt;/div&gt;
+
+&lt;!-- A B deck ugyanígy, csak a másolat --&gt;
+
+&lt;script&gt;
+  function allitsBe(deckElem) {
+    const fajl = deckElem.querySelector("[data-fajl]");
+    const lejatszo = deckElem.querySelector("[data-lejatszo]");
+    const play = deckElem.querySelector("[data-play]");
+    const szunet = deckElem.querySelector("[data-szunet]");
+    const hangero = deckElem.querySelector("[data-hangero]");
+    const tempo = deckElem.querySelector("[data-tempo]");
+    const allapot = deckElem.querySelector("[data-allapot]");
+
+    fajl.addEventListener("change", () =&gt; {
+      const kivalasztott = fajl.files[0];
+      if (!kivalasztott) return;
+      lejatszo.src = URL.createObjectURL(kivalasztott);
+      allapot.textContent = "Betöltve: " + kivalasztott.name;
+    });
+
+    play.addEventListener("click", () =&gt; {
+      if (!lejatszo.src) {
+        allapot.textContent = "Előbb tölts be egy dalt!";
+        return;
+      }
+      lejatszo.play();
+      allapot.textContent = "Szól";
+    });
+
+    szunet.addEventListener("click", () =&gt; {
+      lejatszo.pause();
+      allapot.textContent = "Áll";
+    });
+
+    hangero.addEventListener("input", () =&gt; {
+      lejatszo.volume = hangero.value / 100;
+    });
+
+    tempo.addEventListener("input", () =&gt; {
+      lejatszo.playbackRate = tempo.value / 100;
+    });
+  }
+
+  document.querySelectorAll(".deck").forEach(allitsBe);
+&lt;/script&gt;</code></pre>
+
+<div class="warn"><b>Gyakori hiba:</b> ha a lejátszó még nincs fájllal, a <code>play()</code> hibát dob. Ezért ellenőrizzük előre az <code>if (!lejatszo.src)</code> feltétellel.</div>
+
+<div class="task"><b>1. feladat:</b> Adj a két deckhez egy-egy „Újrakezdés” gombot. Ez állítsa a <code>currentTime</code>-ot nullára, és indítsa a lejátszást.</div>
+
+<div class="task"><b>2. feladat:</b> A tempó csúszka mellett jelenjen meg egy szöveg, ami a tényleges sebességet mutatja, például „1,25×”. A szöveg a csúszka mozgatásakor frissüljön.</div>
+
+<div class="task"><b>3. feladat (bónusz):</b> Írj egy harmadik decket is, a kódot ne másold, csak a HTML-t adj hozzá, és ellenőrizd, hogy a függvény automatikusan beállítja-e. Ha igen, megértetted a <code>forEach</code> működését.</div>
+
+<div class="tip"><b>Mi jön a 4. részben?</b> A hangkeverés a Web Audio API-val: ezzel lehet a két deckből egy közös kimenetet készíteni, a crossfadert pedig az A és a B közötti átmenetre használni. A pultunk ennek a részére épül.</div>
+
+<script>
+  function allitsBe(deckElem) {
+    const fajl = deckElem.querySelector("[data-fajl]");
+    const lejatszo = deckElem.querySelector("[data-lejatszo]");
+    const play = deckElem.querySelector("[data-play]");
+    const szunet = deckElem.querySelector("[data-szunet]");
+    const hangero = deckElem.querySelector("[data-hangero]");
+    const tempo = deckElem.querySelector("[data-tempo]");
+    const allapot = deckElem.querySelector("[data-allapot]");
+
+    fajl.addEventListener("change", () => {
+      const kivalasztott = fajl.files[0];
+      if (!kivalasztott) return;
+      lejatszo.src = URL.createObjectURL(kivalasztott);
+      allapot.textContent = "Betöltve: " + kivalasztott.name;
+    });
+
+    play.addEventListener("click", () => {
+      if (!lejatszo.src) {
+        allapot.textContent = "Előbb tölts be egy dalt!";
+        return;
+      }
+      lejatszo.play();
+      allapot.textContent = "Szól";
+    });
+
+    szunet.addEventListener("click", () => {
+      lejatszo.pause();
+      allapot.textContent = "Áll";
+    });
+
+    hangero.addEventListener("input", () => {
+      lejatszo.volume = hangero.value / 100;
+    });
+
+    tempo.addEventListener("input", () => {
+      lejatszo.playbackRate = tempo.value / 100;
+    });
+  }
+
+  document.querySelectorAll(".demo .deck").forEach(allitsBe);
+</script>
+</body>
+</html>
