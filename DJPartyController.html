@@ -5,14 +5,14 @@
 <meta charset="utf-8">
 <title>Party Deck Controller</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Quicksand:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
 <style>
 :root{
   --bg:#fff5e6; --card:#ffffff; --ink:#3a2a4f; --muted:#8a7a99; --line:#f0dcef;
   --pink:#ff6fb1; --yellow:#ffd23f; --mint:#4fe0bd; --sky:#5ec5ff; --purple:#a98bff; --orange:#ff9a3c;
-  --display:"Fredoka","Trebuchet MS",sans-serif; --body:"Quicksand","Segoe UI",system-ui,sans-serif;
+  --display:"Nunito","Trebuchet MS",sans-serif; --body:"Nunito","Trebuchet MS",sans-serif;
   color-scheme:light;
 }
 body{
@@ -136,6 +136,23 @@ input.vfader{writing-mode:vertical-lr; direction:rtl; accent-color:var(--deck-c)
 .lib-item .li-artist{font-size:13px; color:var(--muted); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .lib-item .acts{display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end}
 .lib-empty{color:var(--muted); font-weight:600; padding:6px}
+.tabs{display:flex; gap:8px; margin:0 0 14px; flex-wrap:wrap}
+.tab{background:#fff; color:var(--ink); border:2px solid var(--line); box-shadow:none}
+.tab.on{background:var(--pink); color:#fff; border-color:var(--pink)}
+.help{background:#fff; border:3px solid var(--yellow); border-radius:26px; padding:18px; display:grid; gap:16px; box-shadow:0 10px 24px rgba(120,60,140,.1)}
+.help[hidden]{display:none}
+.help h2{font-family:var(--display); margin:0; color:var(--pink); font-size:26px}
+.help h3{font-family:var(--display); margin:0 0 4px; font-size:19px}
+.help p, .help li{line-height:1.6; margin:0}
+.help ul, .help ol{margin:0; padding-left:20px; display:grid; gap:6px}
+.help table{width:100%; border-collapse:collapse; font-size:14px}
+.help th, .help td{text-align:left; padding:7px 6px; border-top:1px solid var(--line); vertical-align:top}
+.help td:first-child{font-weight:800; white-space:nowrap; color:var(--pink)}
+.keys{background:#fdfbff; border:2px solid var(--line); border-radius:16px; padding:8px 12px}
+.keys summary{font-family:var(--display); font-weight:700; cursor:pointer; padding:4px 0; color:var(--ink)}
+.keys table{width:100%; border-collapse:collapse; margin-top:8px; font-size:13px}
+.keys th, .keys td{text-align:left; padding:6px 4px; border-top:1px solid var(--line)}
+.keys td:first-child{font-family:ui-monospace,Menlo,Consolas,monospace; white-space:nowrap; font-weight:700; color:var(--pink)}
 .export{background:#f1fff9; border:2px solid var(--mint); border-radius:16px; padding:10px; display:grid; gap:8px}
 .export audio{width:100%}
 .queue{background:#fdfbff; border:2px solid var(--line); border-radius:18px; padding:12px; display:grid; gap:8px; align-content:start}
@@ -182,6 +199,11 @@ input.vfader{writing-mode:vertical-lr; direction:rtl; accent-color:var(--deck-c)
     </div>
   </header>
 
+  <nav class="tabs" aria-label="Nézetek">
+    <button class="tab on" data-tab="pult">Pult</button>
+    <button class="tab" data-tab="sugo">Súgó és mixelés</button>
+  </nav>
+  <div class="view" data-view="pult">
   <div class="layout">
     <div id="deckA"></div>
 
@@ -201,7 +223,24 @@ input.vfader{writing-mode:vertical-lr; direction:rtl; accent-color:var(--deck-c)
       <div class="rec-row">
         <button class="ghost sm" id="recBtn">● Felvétel</button>
       </div>
-      <p class="hint">Billentyűk: Szóköz = A lejátszás (Shift+Szóköz = B), C és M = CUE A és B, Q W E R = A pádjai, U I O P = B pádjai, N és Shift+N = következő szám. Tárcsáknál nyilak: 2%, Shift 10%.</p>
+      <details class="keys">
+        <summary>Billentyűparancsok</summary>
+        <table>
+          <thead><tr><th>Billentyű</th><th>Mit csinál</th></tr></thead>
+          <tbody>
+            <tr><td>Szóköz</td><td>A deck lejátszása vagy szünet</td></tr>
+            <tr><td>Shift + Szóköz</td><td>B deck lejátszása vagy szünet</td></tr>
+            <tr><td>C</td><td>A deck CUE (vissza az elejére)</td></tr>
+            <tr><td>M</td><td>B deck CUE</td></tr>
+            <tr><td>Q W E R</td><td>A deck 1–4. pádja</td></tr>
+            <tr><td>U I O P</td><td>B deck 1–4. pádja</td></tr>
+            <tr><td>N</td><td>A deck következő száma a sorból</td></tr>
+            <tr><td>Shift + N</td><td>B deck következő száma a sorból</td></tr>
+            <tr><td>Nyilak</td><td>Kijelölt csúszka vagy tárcsa: 2%-os lépés</td></tr>
+            <tr><td>Shift + nyíl</td><td>Kijelölt csúszka vagy tárcsa: 10%-os lépés</td></tr>
+          </tbody>
+        </table>
+      </details>
     </section>
 
     <div id="deckB"></div>
@@ -233,6 +272,67 @@ input.vfader{writing-mode:vertical-lr; direction:rtl; accent-color:var(--deck-c)
     <h2>MIDI-hozzárendelés</h2>
     <p class="hint" id="learnHint"></p>
     <div id="learnList"></div>
+  </section>
+  </div>
+  <section class="help view" data-view="sugo" hidden aria-label="Súgó">
+    <h2>Súgó és mixelés</h2>
+
+    <div>
+      <h3>Gyors kezdés</h3>
+      <ol>
+        <li>Tölts be két számot a deckekre: a „Betöltés” gombbal, vagy húzd a fájlt a lemezre. Vagy a zenekönyvtárban kattints az „A-ra” vagy „B-re” gombra.</li>
+        <li>Indítsd az A decket (Lejátszás vagy Szóköz), majd a B decket (Shift+Szóköz).</li>
+        <li>Nyomd meg a SYNC gombot a másik deck tempójához igazításhoz.</li>
+        <li>Húzd a crossfadert lassan az A oldalról a B felé.</li>
+      </ol>
+    </div>
+
+    <div>
+      <h3>Mit csinál az egyes elem?</h3>
+      <table>
+        <thead><tr><th>Elem</th><th>Mire való</th></tr></thead>
+        <tbody>
+          <tr><td>Jog-tárcsa</td><td>Húzva finoman tekerheted a számot. Lejátszás közben forog.</td></tr>
+          <tr><td>Hullámforma</td><td>A szám hangerőgörbéje. Kattints vagy húzd, hogy odatekerj. A sárga sáv a hurok, a színes jelölők az ugrópontok.</td></tr>
+          <tr><td>CUE</td><td>Visszaugrik a szám elejére, és megáll. Ide kezdd az átmenetet.</td></tr>
+          <tr><td>Lejátszás</td><td>Elindítja vagy megállítja a számot.</td></tr>
+          <tr><td>Pádok 1–4</td><td>Hot cue módban ugrópontot mentenek és oda ugranak. Loop módban 1, 2, 4 vagy 8 ütemes hurkot indítanak.</td></tr>
+          <tr><td>Hot cue / Loop</td><td>A pádok működési módját váltja.</td></tr>
+          <tr><td>SYNC</td><td>A deck tempóját a másik deck tempójához igazítja.</td></tr>
+          <tr><td>TAP</td><td>Kopogtasd a ritmust, és a rendszer kiszámolja a tempót. Akkor jó, ha az automatikus érték téved.</td></tr>
+          <tr><td>NEXT és AUTO</td><td>A NEXT betölti a sor következő számát. Az AUTO bekapcsolása után a szám végén magától indul a következő.</td></tr>
+          <tr><td>Tempófader</td><td>Gyorsítja vagy lassítja a számot. Az ütemhez finoman igazíts vele.</td></tr>
+          <tr><td>Fader</td><td>A csatorna hangereje.</td></tr>
+          <tr><td>Trim</td><td>A bemenő jel erősítése. Ha a szám halk vagy túl hangos, ezzel igazítsd.</td></tr>
+          <tr><td>Hi, Mid, Low</td><td>A magas, közép és mély hangok erősítése vagy vágása (±12 dB).</td></tr>
+          <tr><td>Szűrő</td><td>Balra elfojtja a magas hangokat, jobbra elfojtja a mély hangokat. Átmenetnél hasznos.</td></tr>
+          <tr><td>Echo</td><td>Visszhangot ad a számnak. Kevés elég, különben zavaró.</td></tr>
+          <tr><td>Crossfader</td><td>Az A és a B közötti átmenet. Balra csak az A, jobbra csak a B szól.</td></tr>
+          <tr><td>Főszint</td><td>Az egész keverék hangereje.</td></tr>
+          <tr><td>Sor és könyvtár</td><td>A számokat mappákba rendezheted. A „Sorba” gombbal a sor végére teszel egy számot.</td></tr>
+          <tr><td>Felvétel és export</td><td>A REC gombbal rögzítheted a keveréseidet. A WAV és MP3 gombokkal a számokat átalakíthatod.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div>
+      <h3>Alapelvek a mixeléshez</h3>
+      <ul>
+        <li><b>Tempó:</b> két szám akkor illeszkedik, ha a tempójuk egyforma. Használd a SYNC-et, a végén finomíts a tempófaderrel.</li>
+        <li><b>Ütem:</b> az átmenet a ritmus szerint történjen. Az ütemek mentén igazodj, ne a hangerő alapján.</li>
+        <li><b>Hangerő:</b> egyik szám se legyen túl hangos. A főszint körülbelül 80–90% legyen, a szintjelző ne menjen a piros tartományba.</li>
+        <li><b>Mély hangok:</b> ha két szám egyszerre szól, az egyik basszusát vágd le (Low) az átmenet idejére, hogy ne keveredjenek.</li>
+        <li><b>Átmenet hossza:</b> a szokásos átmenet 16 vagy 32 ütem. A crossfadert lassan húzd át.</li>
+        <li><b>Hurok:</b> a LOOP 4 ütemes hurokban tarthatja a számot, amíg a másik deck átveszi a figyelmet.</li>
+        <li><b>Ugrópontok:</b> a refrén vagy a verze elejére tegyél hot cue-t, így gyorsan oda tudsz ugrani.</li>
+        <li><b>Gyakorlás:</b> kezdj lassú számmal, a másik decket sync-eld, és próbálj ki egy rövid átmenetet.</li>
+      </ul>
+    </div>
+
+    <div>
+      <h3>Billentyűk</h3>
+      <p>A teljes lista a Pult fül alatt, a „Billentyűparancsok” menüben található. A nyilakat akkor is használhatod, ha a kurzor egy csúszka vagy tárcsa fölött van.</p>
+    </div>
   </section>
 </div>
 <div id="toast" class="toast" hidden role="status"></div>
@@ -806,7 +906,7 @@ function showExport(item, ext) {
       <b>Export kész (${ext.toUpperCase()}): ${escapeHtml(item.title)}</b>
       <audio controls src="${url}"></audio>
       <a class="btn alt2" href="${url}" download="${escapeHtml(item.file.name)}">Letöltés (${ext.toUpperCase()})</a>
-      <p class="hint">A letöltés csak saját gépre történik.</p>
+      <p class="hint">A letöltés csak a helyi (nem a Claude-ban futó) változatban működik, lásd a fájl leírását.</p>
     </div>`;
 }
 
@@ -879,10 +979,33 @@ document.addEventListener('wheel', e => {
   if (kn) { e.preventDefault(); setNorm(kn.dataset.knob, norm[kn.dataset.knob] - Math.sign(e.deltaY) * 0.02, false); }
 }, { passive: false });
 
+/* ---------- Tabs and hover ---------- */
+let hoverId = null;
+document.addEventListener('pointerover', e => {
+  const el = e.target.closest && e.target.closest('[data-ctl], [data-knob]');
+  hoverId = el ? (el.dataset.ctl || el.dataset.knob) : null;
+});
+document.addEventListener('click', e => {
+  const tab = e.target.closest('[data-tab]');
+  if (!tab) return;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b === tab));
+  document.querySelectorAll('[data-view]').forEach(s => { s.hidden = s.dataset.view !== tab.dataset.tab; });
+});
+
 /* ---------- Keyboard ---------- */
 document.addEventListener('keydown', e => {
   const t = e.target;
-  const id = t.matches('[data-ctl]') ? t.dataset.ctl : (t.matches('[data-knob]') ? t.dataset.knob : null);
+  // Space always means play/pause (Shift+Space = B). Stop the focused button from also being pressed.
+  if (e.key === ' ' && !(t.matches && t.matches('input[type="text"], textarea'))) {
+    e.preventDefault();
+    if (e.repeat) return;   // holding the key must not toggle again and again
+    if (t.blur && (t.tagName === 'BUTTON' || t.tagName === 'LABEL')) t.blur();
+    togglePlay(e.shiftKey ? 'b' : 'a');
+    return;
+  }
+  const arrows = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End'];
+  const focusId = t.matches && (t.matches('[data-ctl]') ? t.dataset.ctl : (t.matches('[data-knob]') ? t.dataset.knob : null));
+  const id = focusId || (arrows.includes(e.key) ? hoverId : null);
   if (id) {
     const big = e.shiftKey ? 0.1 : 0.02;
     let next = null;
@@ -900,7 +1023,8 @@ document.addEventListener('keydown', e => {
     return;
   }
   // Shortcuts only when focus is not on a button, input or label, so Space and letters don't double-fire.
-  if (t.closest && t.closest('input, button, label, textarea')) return;
+  if (t.matches && t.matches('input[type="text"], textarea')) return;
+  if (t.tagName === 'BUTTON' && t.blur) t.blur();   // a clicked button must not block the letter keys
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const key = e.key.toLowerCase();
   const padKeys = { q: 0, w: 1, e: 2, r: 3, u: 0, i: 1, o: 2, p: 3 };
