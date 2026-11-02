@@ -232,8 +232,8 @@ input.vfader{writing-mode:vertical-lr; direction:rtl; accent-color:var(--deck-c)
             <tr><td>Shift + Szóköz</td><td>B deck lejátszása vagy szünet</td></tr>
             <tr><td>C</td><td>A deck CUE (vissza az elejére)</td></tr>
             <tr><td>M</td><td>B deck CUE</td></tr>
-            <tr><td>Q W E R</td><td>A deck 1–4. pádja</td></tr>
-            <tr><td>U I O P</td><td>B deck 1–4. pádja</td></tr>
+            <tr><td>Q W E R</td><td>A deck 1–4. PAD-je</td></tr>
+            <tr><td>U I O P</td><td>B deck 1–4. PAD-je</td></tr>
             <tr><td>N</td><td>A deck következő száma a sorból</td></tr>
             <tr><td>Shift + N</td><td>B deck következő száma a sorból</td></tr>
             <tr><td>Nyilak</td><td>Kijelölt csúszka vagy tárcsa: 2%-os lépés</td></tr>
@@ -292,12 +292,12 @@ input.vfader{writing-mode:vertical-lr; direction:rtl; accent-color:var(--deck-c)
       <table>
         <thead><tr><th>Elem</th><th>Mire való</th></tr></thead>
         <tbody>
-          <tr><td>Jog-tárcsa</td><td>Húzva finoman tekerheted a számot. Lejátszás közben forog.</td></tr>
-          <tr><td>Hullámforma</td><td>A szám hangerőgörbéje. Kattints vagy húzd, hogy odatekerj. A sárga sáv a hurok, a színes jelölők az ugrópontok.</td></tr>
+          <tr><td>Jog wheel</td><td>Húzva finoman tekerheted a számot. Lejátszás közben forog.</td></tr>
+          <tr><td>Hullámforma</td><td>A szám hangerőgörbéje. Kattints vagy húzd, hogy odatekerj. A sárga sáv a hurok, a színes jelölők a hot cue-k.</td></tr>
           <tr><td>CUE</td><td>Visszaugrik a szám elejére, és megáll. Ide kezdd az átmenetet.</td></tr>
           <tr><td>Lejátszás</td><td>Elindítja vagy megállítja a számot.</td></tr>
-          <tr><td>Pádok 1–4</td><td>Hot cue módban ugrópontot mentenek és oda ugranak. Loop módban 1, 2, 4 vagy 8 ütemes hurkot indítanak.</td></tr>
-          <tr><td>Hot cue / Loop</td><td>A pádok működési módját váltja.</td></tr>
+          <tr><td>PAD 1–4</td><td>Hot cue módban hot cue-t mentenek, és oda ugranak. Loop módban 1, 2, 4 vagy 8 ütemes hurkot indítanak.</td></tr>
+          <tr><td>Hot cue / Loop</td><td>A PAD-ek működési módját váltja.</td></tr>
           <tr><td>SYNC</td><td>A deck tempóját a másik deck tempójához igazítja.</td></tr>
           <tr><td>TAP</td><td>Kopogtasd a ritmust, és a rendszer kiszámolja a tempót. Akkor jó, ha az automatikus érték téved.</td></tr>
           <tr><td>NEXT és AUTO</td><td>A NEXT betölti a sor következő számát. Az AUTO bekapcsolása után a szám végén magától indul a következő.</td></tr>
@@ -324,7 +324,7 @@ input.vfader{writing-mode:vertical-lr; direction:rtl; accent-color:var(--deck-c)
         <li><b>Mély hangok:</b> ha két szám egyszerre szól, az egyik basszusát vágd le (Low) az átmenet idejére, hogy ne keveredjenek.</li>
         <li><b>Átmenet hossza:</b> a szokásos átmenet 16 vagy 32 ütem. A crossfadert lassan húzd át.</li>
         <li><b>Hurok:</b> a LOOP 4 ütemes hurokban tarthatja a számot, amíg a másik deck átveszi a figyelmet.</li>
-        <li><b>Ugrópontok:</b> a refrén vagy a verze elejére tegyél hot cue-t, így gyorsan oda tudsz ugrani.</li>
+        <li><b>Hot cue-k:</b> a refrén vagy a verze elejére tegyél hot cue-t, így gyorsan oda tudsz ugrani.</li>
         <li><b>Gyakorlás:</b> kezdj lassú számmal, a másik decket sync-eld, és próbálj ki egy rövid átmenetet.</li>
       </ul>
     </div>
@@ -604,12 +604,12 @@ function padPress(k, i) {
   const d = decks[k], el = d.el;
   if (!el.src) return;
   if (d.mode === 'hot') {
-    if (d.cues[i] === null) { d.cues[i] = el.currentTime; saveCues(k); toast(`Ugrópont ${i + 1} mentve`); }
+    if (d.cues[i] === null) { d.cues[i] = el.currentTime; saveCues(k); toast(`Hot cue ${i + 1} mentve`); }
     else el.currentTime = d.cues[i];
   } else beatLoop(k, LOOP_BEATS[i]);
   updPads(k);
 }
-function clearPad(k, i) { decks[k].cues[i] = null; saveCues(k); updPads(k); toast('Ugrópont törölve'); }
+function clearPad(k, i) { decks[k].cues[i] = null; saveCues(k); updPads(k); toast('Hot cue törölve'); }
 function updPads(k) {
   const d = decks[k];
   [0, 1, 2, 3].forEach(i => {
@@ -1232,7 +1232,7 @@ function renderLearn() {
   }).join('');
   $('#learnHint').textContent = learning
     ? `Mozdítsd meg a vezérlőn azt az elemet, ami ehhez tartozik: ${C[learning].label}`
-    : 'Kattints a Tanulás gombra, majd mozdítsd meg a MIDI-vezérlőn a megfelelő gombot vagy tárcsát. A pádokat nem lehet tanítani.';
+    : 'Kattints a Tanulás gombra, majd mozdítsd meg a MIDI-vezérlőn a megfelelő gombot vagy tárcsát. A PAD-eket nem lehet tanítani.';
 }
 $('#learnToggle').addEventListener('click', () => {
   const panel = $('#learn');
