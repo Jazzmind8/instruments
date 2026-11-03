@@ -906,7 +906,7 @@ function showExport(item, ext) {
       <b>Export kész (${ext.toUpperCase()}): ${escapeHtml(item.title)}</b>
       <audio controls src="${url}"></audio>
       <a class="btn alt2" href="${url}" download="${escapeHtml(item.file.name)}">Letöltés (${ext.toUpperCase()})</a>
-      <p class="hint">A letöltés csak a helyi (nem a Claude-ban futó) változatban működik, lásd a fájl leírását.</p>
+      <p class="hint">A letöltés a saját gépre történik.</p>
     </div>`;
 }
 
